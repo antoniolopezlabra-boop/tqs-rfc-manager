@@ -1233,7 +1233,7 @@ async function loadFromSheets() {
   try {
     // Filtrar por owner_id del usuario logueado (multitenant)
     const ownerId = CURRENT_USER ? CURRENT_USER.id : null;
-    const filterParam = ownerId ? \`rfcs?select=*&owner_id=eq.\${ownerId}&order=fecha.desc&limit=2000\` : 'rfcs?select=*&order=fecha.desc&limit=2000';
+    const filterParam = ownerId ? 'rfcs?select=*&owner_id=eq.' + ownerId + '&order=fecha.desc&limit=2000' : 'rfcs?select=*&order=fecha.desc&limit=2000';
     const data = await sbRequest('GET', filterParam);
     SB_RECORDS = (data || []).map(sbRowToRecord);
 
