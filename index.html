@@ -3339,17 +3339,15 @@ function doLogout() {
   showToast('Sesión cerrada', 'info');
 }
 
-// ── Proteger navigate() con rol ───────────────────────────────
-const _origNavigate = navigate;
-function navigate(page, sheetName, event) {
+// ── Proteger navigate() con rol (sin wrap recursivo) ──────────
+const _navigateWithRol = function(page, sheetName, event) {
   if (!CURRENT_USER) return;
-  // FTE solo puede ver, no crear/editar
   if (page === 'nuevo' && CURRENT_USER.rol === 'fte') {
     showToast('⚠️ No tienes permisos para crear registros', 'warning');
     return;
   }
-  _origNavigate(page, sheetName);
-}
+  navigate(page, sheetName);
+};
 
 
 // ============================================================
