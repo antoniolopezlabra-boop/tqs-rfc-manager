@@ -2821,15 +2821,9 @@ function init() {
     weekday:'short', day:'2-digit', month:'short', year:'numeric'
   });
 
-  // Auto-connect to Sheets if URL exists
-  if (GS_URL) {
-    setGSStatus('connecting');
-    loadFromSheets();
-  } else {
-    setGSStatus('offline');
-    updateAlertBadge();
-    renderDashboard();
-  }
+  // Auto-conectar a Supabase siempre al cargar
+  setGSStatus('connecting');
+  loadFromSheets();
 
   // Wire up GS buttons via addEventListener (more reliable than onclick)
   const gsBtn = document.getElementById('gs-config-btn');
