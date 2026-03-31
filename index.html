@@ -3317,14 +3317,7 @@ async function onbFinishFTE() {
     btn.disabled = false; btn.textContent = 'Entrar al sistema →';
   }
 }
-  const nombre = document.getElementById('onb-nombre').value.trim();
-  if (!nombre) { showToast('⚠️ Escribe tu nombre', 'warning'); return; }
-  window._onbNombre = nombre;
-  document.getElementById('onb-step-1').classList.remove('active');
-  document.getElementById('onb-step-2').classList.add('active');
-  document.getElementById('onb-dot-2').classList.add('done');
-  document.getElementById('onb-sistema-input').focus();
-}
+
 
 function addSistemaOnb() {
   const input = document.getElementById('onb-sistema-input');
