@@ -826,8 +826,13 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   </div>
 
 
+  <div class="sidebar-section" id="nav-admin-section" style="display:none">Administración</div>
+  <div class="nav-item" id="nav-usuarios" onclick="navigate('usuarios')" style="display:none">
+    <span class="icon">👥</span><span>Gestión de Usuarios</span>
+  </div>
+
   <div class="sidebar-footer">
-    <span>Antonio López</span>
+    <span id="footer-nombre">Antonio López</span>
     <span>TQS · v2.0</span>
   </div>
 </aside>
@@ -933,6 +938,17 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
         </div>
       </div>
       <div id="vobo-table-content"></div>
+    </div>
+
+    <!-- USUARIOS PAGE -->
+    <div class="page" id="page-usuarios">
+      <div class="page-header">
+        <h1>👥 Gestión de Usuarios <span class="tag" id="users-count-tag">0</span></h1>
+        <button class="btn btn-primary btn-sm" onclick="showNewUserModal()">➕ Nuevo Usuario</button>
+      </div>
+      <div id="users-table-content">
+        <div class="empty-state"><span class="icon">⏳</span><p>Cargando usuarios...</p></div>
+      </div>
     </div>
 
     <!-- NUEVO RFC -->
@@ -1748,6 +1764,11 @@ function navigate(page, sheetName) {
     document.getElementById('nav-alertas').classList.add('active');
     document.getElementById('topbar-title').textContent = '🔔 Alertas';
     renderAlertsPage();
+  } else if (page === 'usuarios') {
+    document.getElementById('page-usuarios').classList.add('active');
+    document.getElementById('nav-usuarios').classList.add('active');
+    document.getElementById('topbar-title').textContent = '👥 Gestión de Usuarios';
+    renderUsersPage();
   } else if (page === 'vobo') {
     document.getElementById('page-vobo').classList.add('active');
     document.getElementById('topbar-title').textContent = '⏳ En Espera de VOBO';
@@ -3245,6 +3266,10 @@ function applyUserContext(user) {
 
   // Aplicar restricciones por rol
   applyRoleRestrictions(user.rol);
+  applyAdminUI(user.rol);
+  // Actualizar footer sidebar
+  const footerNombre = document.getElementById('footer-nombre');
+  if (footerNombre) footerNombre.textContent = user.nombre;
 }
 
 // ── Sidebar dinámico ──────────────────────────────────────────
@@ -3326,6 +3351,163 @@ function navigate(page, sheetName, event) {
   _origNavigate(page, sheetName);
 }
 
+
+// ============================================================
+// ADMIN — GESTIÓN DE USUARIOS
+// ============================================================
+
+async function loadUsers() {
+  try {
+    const data = await sbRequest('GET', 'tqs_users?select=*&order=created_at.asc');
+    return data || [];
+  } catch(e) {
+    showToast('Error cargando usuarios: ' + e.message, 'error');
+    return [];
+  }
+}
+
+async function renderUsersPage() {
+  const el = document.getElementById('users-table-content');
+  el.innerHTML = '<div class="empty-state"><span class="icon">⏳</span><p>Cargando...</p></div>';
+  
+  const users = await loadUsers();
+  document.getElementById('users-count-tag').textContent = users.length;
+
+  if (users.length === 0) {
+    el.innerHTML = '<div class="empty-state"><span class="icon">👥</span><p>No hay usuarios registrados</p></div>';
+    return;
+  }
+
+  const rolLabel = { admin: '🔴 Admin', tqs_leader: '🟡 TQS Leader', fte: '🔵 FTE' };
+  const rows = users.map(u => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="user-avatar" style="width:28px;height:28px;font-size:10px;flex-shrink:0">
+            ${(u.nombre||'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()}
+          </div>
+          <div>
+            <div style="font-weight:600;color:var(--text)">${u.nombre||'—'}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.email}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge ${u.rol==='admin'?'badge-red':u.rol==='tqs_leader'?'badge-yellow':'badge-blue'}">${rolLabel[u.rol]||u.rol}</span></td>
+      <td style="font-size:11px;color:var(--text3)">${(u.sistemas||[]).length} sistemas</td>
+      <td><span class="badge ${u.activo?'badge-green':'badge-gray'}">${u.activo?'Activo':'Inactivo'}</span></td>
+      <td style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.primer_login?'Pendiente':'Completado'}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm" onclick="viewUserSystems('${u.id}','${u.nombre}')" title="Ver sistemas">📋</button>
+          ${u.activo 
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="toggleUserActivo('${u.id}',false,'${u.nombre}')" title="Desactivar">🚫</button>`
+            : `<button class="btn btn-ghost btn-sm" style="color:var(--green)" onclick="toggleUserActivo('${u.id}',true,'${u.nombre}')" title="Activar">✅</button>`
+          }
+        </div>
+      </td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>Usuario</th>
+            <th>Rol</th>
+            <th>Sistemas</th>
+            <th>Estado</th>
+            <th>Onboarding</th>
+            <th>Acciones</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function showNewUserModal() {
+  ['nu-nombre','nu-email','nu-password'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nu-rol').value = 'tqs_leader';
+  document.getElementById('nu-error').style.display = 'none';
+  document.getElementById('modal-new-user').classList.add('open');
+}
+
+async function createNewUser() {
+  const nombre   = document.getElementById('nu-nombre').value.trim();
+  const email    = document.getElementById('nu-email').value.trim().toLowerCase();
+  const password = document.getElementById('nu-password').value.trim();
+  const rol      = document.getElementById('nu-rol').value;
+  const errEl    = document.getElementById('nu-error');
+  errEl.style.display = 'none';
+
+  if (!nombre || !email || !password) {
+    errEl.textContent = 'Todos los campos son obligatorios';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    await sbRequest('POST', 'tqs_users', {
+      email,
+      password_hash: authB64(password),
+      nombre,
+      rol,
+      sistemas: [],
+      primer_login: true,
+      activo: true
+    });
+    document.getElementById('modal-new-user').classList.remove('open');
+    showToast('✅ Usuario creado: ' + nombre, 'success');
+    renderUsersPage();
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+async function toggleUserActivo(id, activo, nombre) {
+  const accion = activo ? 'activar' : 'desactivar';
+  if (!confirm(`¿${accion.charAt(0).toUpperCase()+accion.slice(1)} al usuario "${nombre}"?`)) return;
+  try {
+    await sbRequest('PATCH', `tqs_users?id=eq.${id}`, { activo });
+    showToast(`✅ Usuario ${activo?'activado':'desactivado'}: ${nombre}`, 'success');
+    renderUsersPage();
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function viewUserSystems(id, nombre) {
+  const data = await sbRequest('GET', `tqs_users?id=eq.${id}&select=sistemas,primer_login`);
+  const user = data && data[0];
+  if (!user) return;
+  const sistemas = user.sistemas || [];
+  const lista = sistemas.length > 0 
+    ? sistemas.map(s => `<div class="sistema-tag"><span>📋 ${s}</span></div>`).join('')
+    : '<div class="sistemas-empty">Sin sistemas configurados</div>';
+  
+  document.getElementById('modal-content').innerHTML = `
+    <div style="margin-bottom:12px">
+      <div style="font-size:16px;font-weight:700;color:var(--accent)">${nombre}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">
+        Onboarding: ${user.primer_login ? '⏳ Pendiente' : '✅ Completado'}
+      </div>
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;margin-bottom:8px">
+      Sistemas asignados (${sistemas.length})
+    </div>
+    <div class="sistemas-grid">${lista}</div>`;
+  document.getElementById('modal-detail').classList.add('open');
+}
+
+function applyAdminUI(rol) {
+  if (rol === 'admin') {
+    const adminSection = document.getElementById('nav-admin-section');
+    const adminNav     = document.getElementById('nav-usuarios');
+    if (adminSection) adminSection.style.display = '';
+    if (adminNav)     adminNav.style.display = '';
+  }
+}
 
 function init() {
   // Date
@@ -3722,5 +3904,40 @@ init();
 
 
 </script>
+
+<!-- MODAL NUEVO USUARIO -->
+<div id="modal-new-user" class="modal-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">➕ Nuevo Usuario</div>
+      <button class="modal-close" onclick="document.getElementById('modal-new-user').classList.remove('open')">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="auth-field">
+        <div class="auth-label">Nombre completo</div>
+        <input class="auth-input" id="nu-nombre" type="text" placeholder="Nombre del usuario">
+      </div>
+      <div class="auth-field">
+        <div class="auth-label">Correo electrónico</div>
+        <input class="auth-input" id="nu-email" type="email" placeholder="correo@dxc.com">
+      </div>
+      <div class="auth-field">
+        <div class="auth-label">Contraseña inicial</div>
+        <input class="auth-input" id="nu-password" type="text" placeholder="Ej: Inicio.01">
+      </div>
+      <div class="auth-field">
+        <div class="auth-label">Rol</div>
+        <select class="auth-input" id="nu-rol">
+          <option value="tqs_leader">TQS Leader</option>
+          <option value="fte">FTE (Solo lectura)</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div id="nu-error" class="auth-error"></div>
+      <button class="auth-btn" onclick="createNewUser()">💾 Crear Usuario</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
