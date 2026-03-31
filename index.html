@@ -1749,6 +1749,13 @@ let currentPage = 1;
 const PAGE_SIZE = 40;
 
 function navigate(page, sheetName) {
+  // Validacion de rol
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
+    if (page === 'nuevo' && CURRENT_USER.rol === 'fte') {
+      showToast('⚠️ No tienes permisos para crear registros', 'warning');
+      return;
+    }
+  }
   // Hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   // Remove active nav
@@ -3339,15 +3346,8 @@ function doLogout() {
   showToast('Sesión cerrada', 'info');
 }
 
-// ── Proteger navigate() con rol (sin wrap recursivo) ──────────
-const _navigateWithRol = function(page, sheetName, event) {
-  if (!CURRENT_USER) return;
-  if (page === 'nuevo' && CURRENT_USER.rol === 'fte') {
-    showToast('⚠️ No tienes permisos para crear registros', 'warning');
-    return;
-  }
-  navigate(page, sheetName);
-};
+// ── Validacion de rol integrada (sin wrapper) ─────────────────
+// La validacion de rol se hace dentro de navigate() directamente
 
 
 // ============================================================
