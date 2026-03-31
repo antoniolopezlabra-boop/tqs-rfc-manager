@@ -701,7 +701,8 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
         <button class="auth-btn" onclick="onbNext()">Siguiente →</button>
       </div>
 
-      <div class="onb-step" id="onb-step-2">
+      <!-- PASO 2 TQS: Agregar sistemas -->
+      <div class="onb-step" id="onb-step-2-tqs">
         <div class="auth-title">Tus Sistemas RFC</div>
         <div class="auth-subtitle">Agrega los sistemas SAP que administras. Aparecerán en tu menú lateral.</div>
 
@@ -718,6 +719,19 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
 
         <button class="auth-btn" id="onb-finish-btn" onclick="onbFinish()">Entrar al sistema →</button>
         <div class="auth-error" id="onb-error">Agrega al menos un sistema para continuar</div>
+      </div>
+
+      <!-- PASO 2 FTE: Seleccionar TQS a seguir -->
+      <div class="onb-step" id="onb-step-2-fte">
+        <div class="auth-title">¿A quién quieres seguir?</div>
+        <div class="auth-subtitle">Selecciona los TQS Leaders cuyos sistemas quieres visualizar.</div>
+
+        <div class="sistemas-grid" id="onb-tqs-list">
+          <div class="sistemas-empty">Cargando TQS Leaders...</div>
+        </div>
+
+        <button class="auth-btn" id="onb-finish-fte-btn" onclick="onbFinishFTE()">Entrar al sistema →</button>
+        <div class="auth-error" id="onb-error-fte">Selecciona al menos un TQS Leader para continuar</div>
       </div>
     </div>
 
@@ -3193,7 +3207,111 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Onboarding ────────────────────────────────────────────────
-function onbNext() {
+async function onbNext() {
+  const nombre = document.getElementById('onb-nombre').value.trim();
+  if (!nombre) { showToast('⚠️ Escribe tu nombre', 'warning'); return; }
+  window._onbNombre = nombre;
+  document.getElementById('onb-step-1').classList.remove('active');
+  document.getElementById('onb-dot-2').classList.add('done');
+
+  // Obtener el rol del usuario desde Supabase
+  const data = await sbRequest('GET', 'tqs_users?id=eq.' + window._onbUserId + '&select=rol');
+  const rol = data && data[0] ? data[0].rol : 'tqs_leader';
+  window._onbRol = rol;
+
+  if (rol === 'fte') {
+    // Mostrar paso FTE: seleccionar TQS a seguir
+    document.getElementById('onb-step-2-fte').classList.add('active');
+    await loadTQSParaFTE();
+  } else {
+    // Mostrar paso TQS: agregar sistemas
+    document.getElementById('onb-step-2-tqs').classList.add('active');
+    document.getElementById('onb-sistema-input').focus();
+  }
+}
+
+// Cargar lista de TQS Leaders para que FTE seleccione
+let _onbTQSSeleccionados = new Set();
+async function loadTQSParaFTE() {
+  const el = document.getElementById('onb-tqs-list');
+  el.innerHTML = '<div class="sistemas-empty">Cargando...</div>';
+  try {
+    const tqsList = await sbRequest('GET', 'tqs_users?rol=eq.tqs_leader&activo=eq.true&select=id,nombre,sistemas');
+    if (!tqsList || tqsList.length === 0) {
+      el.innerHTML = '<div class="sistemas-empty">No hay TQS Leaders disponibles aún</div>';
+      return;
+    }
+    el.innerHTML = tqsList.map(tqs => {
+      const sistemas = (tqs.sistemas || []).join(', ') || 'Sin sistemas configurados';
+      return '<div class="sistema-tag" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;padding:12px 14px" onclick="toggleTQSSeleccion('' + tqs.id + '',this)" id="tqs-opt-' + tqs.id + '">' +
+        '<div style="display:flex;align-items:center;gap:8px;width:100%">' +
+        '<div style="width:18px;height:18px;border-radius:3px;border:2px solid var(--border2);background:transparent;flex-shrink:0;transition:all 0.15s" id="tqs-check-' + tqs.id + '"></div>' +
+        '<span style="font-weight:600;color:var(--text)">' + tqs.nombre + '</span>' +
+        '<span style="font-size:9px;letter-spacing:1px;color:var(--accent);font-family:var(--mono);margin-left:auto">TQS LEADER</span>' +
+        '</div>' +
+        '<div style="font-size:11px;color:var(--text3);padding-left:26px">' + sistemas + '</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="sistemas-empty">Error: ' + e.message + '</div>';
+  }
+}
+
+function toggleTQSSeleccion(id, el) {
+  const check = document.getElementById('tqs-check-' + id);
+  if (_onbTQSSeleccionados.has(id)) {
+    _onbTQSSeleccionados.delete(id);
+    check.style.background = 'transparent';
+    check.style.borderColor = 'var(--border2)';
+    el.style.background = '';
+  } else {
+    _onbTQSSeleccionados.add(id);
+    check.style.background = 'var(--accent)';
+    check.style.borderColor = 'var(--accent)';
+    el.style.background = 'rgba(0,207,255,0.05)';
+  }
+}
+
+async function onbFinishFTE() {
+  const errEl = document.getElementById('onb-error-fte');
+  errEl.style.display = 'none';
+  if (_onbTQSSeleccionados.size === 0) { errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('onb-finish-fte-btn');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  try {
+    // Obtener sistemas de todos los TQS seleccionados
+    const ids = [..._onbTQSSeleccionados].join(',');
+    const tqsData = await sbRequest('GET', 'tqs_users?id=in.(' + ids + ')&select=id,sistemas');
+    
+    // Combinar todos los sistemas únicos
+    const todosSistemas = [];
+    tqsData.forEach(tqs => {
+      (tqs.sistemas || []).forEach(s => {
+        if (!todosSistemas.includes(s)) todosSistemas.push(s);
+      });
+    });
+
+    // Guardar: nombre, sistemas combinados, TQS seguidos
+    await sbRequest('PATCH', 'tqs_users?id=eq.' + window._onbUserId, {
+      nombre: window._onbNombre,
+      sistemas: todosSistemas,
+      siguiendo_tqs: [..._onbTQSSeleccionados],
+      primer_login: false,
+      updated_at: new Date().toISOString()
+    });
+
+    const data = await sbRequest('GET', 'tqs_users?id=eq.' + window._onbUserId + '&limit=1');
+    const user = data && data[0];
+    saveSession(user);
+    onLoginSuccess(user);
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Entrar al sistema →';
+  }
+}
   const nombre = document.getElementById('onb-nombre').value.trim();
   if (!nombre) { showToast('⚠️ Escribe tu nombre', 'warning'); return; }
   window._onbNombre = nombre;
