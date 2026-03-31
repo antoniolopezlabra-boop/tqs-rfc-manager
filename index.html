@@ -3333,15 +3333,19 @@ function init() {
     weekday:'short', day:'2-digit', month:'short', year:'numeric'
   });
 
-  // Auto-connect to Sheets if URL exists
-  if (GS_URL) {
-    setGSStatus('connecting');
-    loadFromSheets();
-  } else {
-    setGSStatus('offline');
-    updateAlertBadge();
-    renderDashboard();
-  }
+  // Auth: verificar sesion activa
+  setTimeout(() => {
+    const session = loadSession();
+    if (session) {
+      CURRENT_USER = session;
+      hideAuthOverlay();
+      applyUserContext(session);
+      setGSStatus('connecting');
+      loadFromSheets();
+    } else {
+      showAuthOverlay();
+    }
+  }, 50);
 
   // Wire up GS buttons via addEventListener (more reliable than onclick)
   const gsBtn = document.getElementById('gs-config-btn');
