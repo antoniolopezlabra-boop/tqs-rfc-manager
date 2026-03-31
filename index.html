@@ -531,7 +531,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <strong style="color:var(--green)">✅ Conexión activa.</strong> Migra los registros históricos al Sheet (solo una vez).
         </div>
         <button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green);width:100%;padding:9px" onclick="migrateAllToSheets()">
-          ⬆️ Migrar 505 registros históricos a Google Sheets
+          ⬆️ Migrar registros históricos a Supabase
         </button>
         <div id="migration-progress" style="margin-top:10px;display:none">
           <div style="background:var(--surface3);border-radius:4px;height:8px;overflow:hidden">
@@ -623,7 +623,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
         <span id="gs-dot" class="gs-dot"></span>
         <span id="gs-label">Sin conectar</span>
       </div>
-      <button class="btn btn-ghost btn-sm" id="gs-config-btn" title="Configurar Google Sheets">⚙️ Sheets</button>
+      <button class="btn btn-ghost btn-sm" id="gs-config-btn" title="Configurar Google Sheets">⚙️ Supabase</button>
       <button class="btn btn-ghost btn-sm" id="gs-reload-btn" title="Recargar datos de Sheets" style="display:none">🔄</button>
       <button class="btn btn-ghost btn-sm" onclick="exportOldDB()" title="Exportar registros de años anteriores (CSV ejecutivo)" style="border-color:var(--yellow);color:var(--yellow);font-size:11px">📤 Export DB_OLD</button>
       <button class="btn btn-ghost btn-sm" onclick="confirmDeleteOldDB()" title="Depurar BD — mantiene solo año actual y anterior" style="border-color:var(--red);color:var(--red);font-size:11px">🗑️ DELETE_DB_OLD</button>
@@ -895,22 +895,184 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
 
 
 // ============================================================
-// GOOGLE SHEETS INTEGRATION
+// SUPABASE INTEGRATION
 // ============================================================
-const GS_KEY = 'tqs_gs_url';
-let GS_URL = localStorage.getItem(GS_KEY) || '';
+const SB_URL  = 'https://zhfmhaqwmkooxxufnncp.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpoZm1oYXF3bWtvb3h4dWZubmNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MjE0NjgsImV4cCI6MjA5MDQ5NzQ2OH0.jbWV5ikqnQPIrBym3A4_MEVHfmlCZXeyk9Ua10U5lT0';
+
+let SB_CONNECTED = false;
+let SB_RECORDS   = [];
+let SB_LOADING   = false;
+
+// ── Alias para compatibilidad con código existente ──
 let GS_CONNECTED = false;
-let GS_RECORDS = [];   // live records from Sheets
-let GS_LOADING = false;
+let GS_RECORDS   = [];
+let GS_LOADING   = false;
+let GS_URL       = '';
 
 // ── Auto-Sync cada 30 minutos ──
-const AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 min
-let _autoSyncTimer   = null;
-let _lastSyncTime    = null;
-let _syncCountdown   = null; // timer del countdown en topbar
+const AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+let _autoSyncTimer  = null;
+let _lastSyncTime   = null;
+let _syncCountdown  = null;
 
-function getGSUrl() { return GS_URL; }
+// ── Headers Supabase ──
+function sbHeaders() {
+  return {
+    'apikey':        SB_ANON,
+    'Authorization': 'Bearer ' + SB_ANON,
+    'Content-Type':  'application/json',
+    'Prefer':        'return=representation'
+  };
+}
 
+// ── Mapeo Supabase → formato portal ──
+function sbRowToRecord(r) {
+  return {
+    tipo:         r.tipo          || '',
+    ambiente:     r.ambiente      || '',
+    ticket:       r.ticket        || '',
+    fecha:        r.fecha         || '',
+    sistema:      r.sid           || r.sistema_name || '',
+    promotor:     r.promotor      || '',
+    descripcion:  r.descripcion   || '',
+    observaciones:r.observaciones || '',
+    status:       r.status        || '',
+    horaInicio:   r.hora_inicio   || '',
+    horaFin:      r.hora_fin      || '',
+    _sheet:       r.sistema_grupo || r.sistema_name || '',
+    _id:          r.id
+  };
+}
+
+// ── Mapeo portal → Supabase row ──
+function recordToSbRow(r) {
+  return {
+    tipo:           r.tipo              || '',
+    ambiente:       r.ambiente          || '',
+    ticket:         (r.ticket || '').trim(),
+    fecha:          r.fecha             || null,
+    sistema_name:   r._sheet            || r.sistema || '',
+    sistema_grupo:  r._sheet            || '',
+    sid:            r.sistema           || '',
+    promotor:       r.promotor          || '',
+    descripcion:    r.descripcion       || '',
+    observaciones:  r.observaciones     || '',
+    status:         r.status            || '',
+    hora_inicio:    r.horaInicio        || null,
+    hora_fin:       r.horaFin           || null,
+  };
+}
+
+// ── Request helper ──
+async function sbRequest(method, path, body) {
+  const opts = { method, headers: sbHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  const resp = await fetch(SB_URL + '/rest/v1/' + path, opts);
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Supabase ${resp.status}: ${err}`);
+  }
+  if (resp.status === 204) return null;
+  return resp.json();
+}
+
+// ── Cargar todos los registros ──
+async function loadFromSheets() {
+  if (SB_LOADING) return;
+  SB_LOADING = true;
+  GS_LOADING = true;
+  setGSStatus('connecting');
+  try {
+    const data = await sbRequest('GET', 'rfcs?select=*&order=fecha.desc&limit=2000');
+    SB_RECORDS = (data || []).map(sbRowToRecord);
+
+    // Sincronizar con GS_RECORDS y RAW_DATA para compatibilidad
+    GS_RECORDS   = SB_RECORDS;
+    SB_CONNECTED = true;
+    GS_CONNECTED = true;
+
+    // Actualizar RAW_DATA con datos frescos de Supabase
+    SB_RECORDS.forEach(r => {
+      const sheet = r._sheet;
+      if (!sheet) return;
+      if (!RAW_DATA[sheet]) RAW_DATA[sheet] = [];
+      const idx = RAW_DATA[sheet].findIndex(x =>
+        x.ticket === r.ticket && x.fecha === r.fecha
+      );
+      if (idx >= 0) {
+        RAW_DATA[sheet][idx] = { ...r };
+      } else {
+        RAW_DATA[sheet].push({ ...r });
+      }
+    });
+
+    setGSStatus('online');
+    updateAlertBadge();
+    renderDashboard();
+    if (typeof applyFilters === 'function') applyFilters();
+    showToast(`✅ ${SB_RECORDS.length} registros cargados de Supabase`, 'success');
+    _lastSyncTime = new Date();
+    _updateSyncBadge('ok');
+    setTimeout(() => { if (_autoSyncTimer) _updateSyncBadge('countdown'); }, 4000);
+    if (!_autoSyncTimer) startAutoSync();
+  } catch (e) {
+    SB_CONNECTED = false;
+    GS_CONNECTED = false;
+    setGSStatus('error');
+    showToast('⚠️ Error conectando a Supabase: ' + e.message, 'error');
+  }
+  SB_LOADING = false;
+  GS_LOADING = false;
+}
+
+// ── Crear registro ──
+async function sbCreate(record) {
+  const row = recordToSbRow(record);
+  return sbRequest('POST', 'rfcs', row);
+}
+
+// ── Actualizar status ──
+async function sbUpdateStatus(record, newStatus) {
+  if (!record._id) throw new Error('Sin ID de registro');
+  return sbRequest('PATCH', `rfcs?id=eq.${record._id}`, { status: newStatus });
+}
+
+// ── Actualizar registro completo ──
+async function sbUpdate(record) {
+  if (!record._id) throw new Error('Sin ID de registro');
+  const row = recordToSbRow(record);
+  return sbRequest('PATCH', `rfcs?id=eq.${record._id}`, row);
+}
+
+// ── Eliminar registro ──
+async function sbDelete(record) {
+  if (!record._id) throw new Error('Sin ID de registro');
+  return sbRequest('DELETE', `rfcs?id=eq.${record._id}`, null);
+}
+
+// ── Eliminar registros viejos ──
+async function sbDeleteOldRecords(sheet, keepYears) {
+  const minYear = Math.min(...keepYears);
+  return sbRequest('DELETE',
+    `rfcs?sistema_grupo=eq.${encodeURIComponent(sheet)}&fecha=lt.${minYear}-01-01`,
+    null
+  );
+}
+
+// ── Stub compatibilidad: gsRequest ──
+async function gsRequest(action, body = {}) {
+  if (action === 'getAll')         return { records: SB_RECORDS };
+  if (action === 'ping')           return { time: new Date().toISOString() };
+  if (action === 'create')         return sbCreate(body);
+  if (action === 'update')         return sbUpdate(body);
+  if (action === 'updateStatus')   return sbUpdateStatus(body, body.newStatus);
+  if (action === 'delete')         return sbDelete(body);
+  if (action === 'deleteOldRecords') return sbDeleteOldRecords(body.sheet, body.keepYears);
+  throw new Error('Acción no soportada: ' + action);
+}
+
+// ── UI: estado conexión ──
 function setGSStatus(state) {
   const el    = document.getElementById('gs-status');
   const dot   = document.getElementById('gs-dot');
@@ -918,208 +1080,62 @@ function setGSStatus(state) {
   if (!dot) return;
   if (el) el.className = 'gs-status';
   const states = {
-    offline:    { cls:'gs-offline',    dot:'var(--text3)', text:'Sin conectar' },
-    connecting: { cls:'gs-connecting', dot:'var(--yellow)', text:'Conectando…' },
-    online:     { cls:'gs-online',     dot:'var(--green)',  text:'Google Sheets' },
-    error:      { cls:'gs-offline',    dot:'var(--red)',    text:'⚠ Error Sheets' },
+    offline:    { cls:'gs-offline',    dot:'var(--text3)',  text:'Sin conectar' },
+    connecting: { cls:'gs-connecting', dot:'var(--yellow)', text:'Conectando…'  },
+    online:     { cls:'gs-online',     dot:'var(--green)',  text:'Supabase ✓'   },
+    error:      { cls:'gs-offline',    dot:'var(--red)',    text:'⚠ Error Supabase' },
   };
   const s = states[state] || states.offline;
   if (el) el.classList.add(s.cls);
   dot.style.background = s.dot;
-  label.textContent = s.text;
-  GS_CONNECTED = (state === 'online');
+  label.textContent    = s.text;
+  GS_CONNECTED = SB_CONNECTED = (state === 'online');
   const reloadBtn = document.getElementById('gs-reload-btn');
   if (reloadBtn) reloadBtn.style.display = GS_CONNECTED ? '' : 'none';
 }
 
-async function gsRequest(action, body = {}) {
-  if (!GS_URL) throw new Error('No hay URL configurada');
-
-  // READ operations → GET request (no CORS preflight)
-  const readActions = ['getAll', 'getSheets', 'ping'];
-  if (readActions.includes(action)) {
-    const params = new URLSearchParams({ action });
-    if (body.sheet) params.append('sheet', body.sheet);
-    const resp = await fetch(GS_URL + '?' + params.toString());
-    const json = await resp.json();
-    if (!json.success) throw new Error(json.error || 'Error desconocido');
-    return json.data;
-  }
-
-  // WRITE operations → POST with URL-encoded body (avoids CORS preflight)
-  const payload = { action, ...body };
-  // Encode as URL params in the query string and send as GET to bypass CORS
-  // Apps Script doGet handles all actions
-  const params = new URLSearchParams();
-  params.append('action', action);
-  // Encode the full body as JSON in a single param
-  params.append('payload', JSON.stringify(payload));
-  const resp = await fetch(GS_URL + '?' + params.toString());
-  const json = await resp.json();
-  if (!json.success) throw new Error(json.error || 'Error desconocido');
-  return json.data;
-}
-
-async function loadFromSheets() {
-  if (!GS_URL || GS_LOADING) return;
-  GS_LOADING = true;
-  setGSStatus('connecting');
-  try {
-    const data = await gsRequest('getAll');
-    GS_RECORDS = (data.records || []).filter(r => {
-      const s = (r._sheet || '');
-      return !s.startsWith('Infra');
-    }).map(r => {
-      // Normalizar horas que vienen de Sheets como decimal (0.791666 = 19:00)
-      const normHora = (v) => {
-        if (v === null || v === undefined || v === '') return '';
-        const str = String(v).trim();
-        if (!str || str === '0') return '';
-        const num = parseFloat(str);
-        if (!isNaN(num) && str.indexOf(':') === -1 && str.indexOf('-') === -1 && num >= 0 && num < 1) {
-          const totalMin = Math.round(num * 24 * 60);
-          const h = Math.floor(totalMin / 60);
-          const m = totalMin % 60;
-          return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-        }
-        if (/^1900-01-01/.test(str) || str === '1899-12-30') return '';
-        const dtMatch = str.match(/T(\d{2}:\d{2})/);
-        if (dtMatch) return dtMatch[1];
-        const timeMatch = str.match(/^(\d{1,2}:\d{2})(?::\d{2})?$/);
-        if (timeMatch) return timeMatch[1];
-        if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return '';
-        return str;
-      };
-      // Normalizar nombre de hoja: "RFC-CPROC" → "CPROC" para compatibilidad
-      const sheetAliases = { 'RFC-CPROC': 'CPROC' };
-      const normalizedSheet = sheetAliases[r._sheet] || r._sheet;
-      return { ...r, _sheet: normalizedSheet, horaInicio: normHora(r.horaInicio), horaFin: normHora(r.horaFin) };
-    });
-    // ── Sincronizar RAW_DATA con GS_RECORDS para que Cmd+S capture datos frescos ──
-    GS_RECORDS.forEach(r => {
-      const sheet = r._sheet;
-      if (!RAW_DATA[sheet]) RAW_DATA[sheet] = [];
-      const idx = RAW_DATA[sheet].findIndex(x => x.ticket === r.ticket && x.fecha === r.fecha);
-      if (idx >= 0) {
-        RAW_DATA[sheet][idx] = { ...r };
-      } else {
-        RAW_DATA[sheet].push({ ...r });
-      }
-    });
-    // ────────────────────────────────────────────────────────────────────────────
-    setGSStatus('online');
-    updateAlertBadge();
-    renderDashboard();
-    if (typeof applyFilters === 'function') applyFilters();
-    showToast(`✅ ${GS_RECORDS.length} registros cargados de Sheets`, 'success');
-    _lastSyncTime = new Date();
-    _updateSyncBadge('ok');
-    setTimeout(() => { if (_autoSyncTimer) _updateSyncBadge('countdown'); }, 4000);
-    // Arrancar auto-sync la primera vez que se conecta exitosamente
-    if (!_autoSyncTimer && GS_URL) startAutoSync();
-  } catch (e) {
-    setGSStatus('error');
-    showToast('⚠️ Error conectando a Sheets: ' + e.message, 'error');
-  }
-  GS_LOADING = false;
-}
-
+// ── Stubs UI que ya no aplican (Google Sheets config) ──
 function showGSConfig() {
-  const inp = document.getElementById('gs-url-input');
-  if (inp) inp.value = GS_URL;
-  const migSection = document.getElementById('gs-migration-section');
-  if (migSection) migSection.style.display = GS_CONNECTED ? '' : 'none';
-  const discoSection = document.getElementById('gs-disconnect-section');
-  if (discoSection) discoSection.style.display = GS_URL ? '' : 'none';
-  const testResult = document.getElementById('gs-test-result');
-  if (testResult) testResult.style.display = 'none';
-  document.getElementById('modal-gs-config').classList.add('open');
+  showToast('💡 Backend: Supabase (zhfmhaqwmkooxxufnncp). No se requiere configuración.', 'info');
 }
-
 function disconnectSheets() {
-  GS_URL = '';
-  GS_CONNECTED = false;
-  GS_RECORDS = [];
-  localStorage.removeItem(GS_KEY);
-  setGSStatus('offline');
-  document.getElementById('modal-gs-config').classList.remove('open');
-  showToast('🔌 Desconectado de Google Sheets. Usando datos locales.', 'warning');
-  updateAlertBadge();
-  renderDashboard();
+  showToast('⚠️ Supabase no se puede desconectar desde la UI.', 'warning');
 }
-
 async function testGSConnection() {
-  const url = document.getElementById('gs-url-input').value.trim();
-  const result = document.getElementById('gs-test-result');
-  result.style.display = 'block';
-  result.style.background = 'var(--yellow-bg)';
-  result.style.color = 'var(--yellow)';
-  result.textContent = '🔄 Probando conexión…';
   try {
-    const tempUrl = GS_URL;
-    GS_URL = url;
-    const data = await gsRequest('ping');
-    GS_URL = tempUrl;
-    result.style.background = 'var(--green-bg)';
-    result.style.color = 'var(--green)';
-    result.textContent = '✅ Conexión exitosa! Timestamp: ' + data.time;
-    document.getElementById('gs-migration-section').style.display = '';
-  } catch (e) {
-    GS_URL = GS_URL;
-    result.style.background = 'var(--red-bg)';
-    result.style.color = 'var(--red)';
-    result.textContent = '❌ Error: ' + e.message + '. Verifica que la URL sea correcta y que el script esté implementado como "Cualquier persona".';
+    await sbRequest('GET', 'rfcs?limit=1');
+    showToast('✅ Supabase conectado correctamente', 'success');
+  } catch(e) {
+    showToast('❌ Error: ' + e.message, 'error');
   }
 }
-
-function saveGSConfig() {
-  const url = document.getElementById('gs-url-input').value.trim();
-  if (!url) { showToast('⚠️ Pega la URL del Apps Script', 'warning'); return; }
-  GS_URL = url;
-  localStorage.setItem(GS_KEY, url);
-  document.getElementById('modal-gs-config').classList.remove('open');
-  showToast('💾 URL guardada. Conectando…', 'success');
-  loadFromSheets();
-}
-
+function saveGSConfig() { loadFromSheets(); }
 async function migrateAllToSheets() {
-  const progress = document.getElementById('migration-progress');
-  const bar = document.getElementById('migration-bar');
-  const label = document.getElementById('migration-label');
-  progress.style.display = 'block';
-
   const RFC_SHEETS = ['CPROC','SOLMAN','Data Staging','Cloud Connector','Dynatrace','SCM & EWM','FDE & FR'];
+  let done = 0;
+  const bar   = document.getElementById('migration-bar');
+  const label = document.getElementById('migration-label');
+  const prog  = document.getElementById('migration-progress');
+  if (prog) prog.style.display = 'block';
+
   const allRecords = [];
   for (const sheet of RFC_SHEETS) {
-    const rows = RAW_DATA[sheet] || [];
-    rows.forEach(r => allRecords.push({ ...r, _sheet: sheet }));
+    (RAW_DATA[sheet] || []).forEach(r => allRecords.push({ ...r, _sheet: sheet }));
   }
 
-  let done = 0;
-  const BATCH = 5;
-  const FIELDS = ['tipo','ambiente','ticket','fecha','sistema','promotor','descripcion','observaciones','status','horaInicio','horaFin'];
-
-  for (let i = 0; i < allRecords.length; i += BATCH) {
-    const batch = allRecords.slice(i, i + BATCH);
-    for (const r of batch) {
-      try {
-        await gsRequest('create', { ...r });
-      } catch (e) {
-        console.warn('Error migrando:', r.ticket, e.message);
-      }
-      done++;
-      const pct = Math.round(done / allRecords.length * 100);
-      bar.style.width = pct + '%';
-      label.textContent = `Migrando ${done} / ${allRecords.length} registros (${pct}%)…`;
-    }
-    await new Promise(r => setTimeout(r, 150)); // throttle
+  for (let i = 0; i < allRecords.length; i++) {
+    try { await sbCreate(allRecords[i]); } catch(e) { /* skip dups */ }
+    done++;
+    const pct = Math.round(done / allRecords.length * 100);
+    if (bar)   bar.style.width = pct + '%';
+    if (label) label.textContent = `Migrando ${done}/${allRecords.length} (${pct}%)…`;
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 50));
   }
-
-  label.textContent = `✅ Migración completa: ${done} registros enviados a Google Sheets`;
-  bar.style.background = 'var(--green)';
-  showToast(`✅ ${done} registros migrados a Google Sheets`, 'success');
+  if (label) label.textContent = `✅ ${done} registros migrados a Supabase`;
+  showToast(`✅ ${done} registros migrados a Supabase`, 'success');
   await loadFromSheets();
 }
+
 
 // ============================================================
 // DATA
