@@ -1001,13 +1001,6 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
             <label class="form-label">Grupo / Sistema *</label>
             <select class="form-select" id="f-grupo">
               <option value="">Seleccionar grupo...</option>
-              <option>CPROC</option>
-              <option>SOLMAN</option>
-              <option>Data Staging</option>
-              <option>Cloud Connector</option>
-              <option>Dynatrace</option>
-              <option>SCM &amp; EWM</option>
-              <option>FDE &amp; FR</option>
             </select>
           </div>
           <div class="form-group">
@@ -1804,6 +1797,13 @@ function navigate(page, sheetName) {
     document.getElementById('page-nuevo').classList.add('active');
     document.getElementById('nav-nuevo').classList.add('active');
     document.getElementById('topbar-title').textContent = '➕ Nuevo RFC';
+    // Poblar select de grupos con sistemas del usuario logueado
+    const grupoSel = document.getElementById('f-grupo');
+    if (grupoSel && CURRENT_USER) {
+      const sistemas = CURRENT_USER.sistemas || [];
+      grupoSel.innerHTML = '<option value="">Seleccionar grupo...</option>' +
+        sistemas.map(s => '<option value="' + s + '">' + s + '</option>').join('');
+    }
   } else if (page === 'sheet') {
     currentSheet = sheetName;
     currentPage = 1;
