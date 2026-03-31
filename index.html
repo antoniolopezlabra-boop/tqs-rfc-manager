@@ -3295,7 +3295,7 @@ function buildUserSidebar(user) {
   if (!container) return;
 
   container.innerHTML = sistemas.map(s =>
-    `<div class="nav-item" onclick="navigate('sheet','${s.replace(/'/g,"\'")}',event)" id="nav-${CSS.escape(s)}">
+    `<div class="nav-item" onclick="navigate('sheet','${s.replace(/'/g,"\'")}')" id="nav-${CSS.escape(s)}">
       <span class="icon">${getSistemaIcon(s)}</span><span>${s}</span>
     </div>`
   ).join('');
