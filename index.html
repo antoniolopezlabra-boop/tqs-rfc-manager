@@ -1207,6 +1207,7 @@ function recordToSbRow(r) {
     status:         r.status            || '',
     hora_inicio:    r.horaInicio        || null,
     hora_fin:       r.horaFin           || null,
+    owner_id:       r.owner_id || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER ? CURRENT_USER.id : null),
   };
 }
 
@@ -1230,7 +1231,10 @@ async function loadFromSheets() {
   GS_LOADING = true;
   setGSStatus('connecting');
   try {
-    const data = await sbRequest('GET', 'rfcs?select=*&order=fecha.desc&limit=2000');
+    // Filtrar por owner_id del usuario logueado (multitenant)
+    const ownerId = CURRENT_USER ? CURRENT_USER.id : null;
+    const filterParam = ownerId ? \`rfcs?select=*&owner_id=eq.\${ownerId}&order=fecha.desc&limit=2000\` : 'rfcs?select=*&order=fecha.desc&limit=2000';
+    const data = await sbRequest('GET', filterParam);
     SB_RECORDS = (data || []).map(sbRowToRecord);
 
     // Sincronizar con GS_RECORDS y RAW_DATA para compatibilidad
@@ -1407,9 +1411,12 @@ let LOCAL_RECORDS = loadLocal();
 
 function getAll() {
   if (GS_CONNECTED && GS_RECORDS.length > 0) {
-    // When connected to Sheets, use Sheets data + local pending (not yet synced)
     const pendingLocal = LOCAL_RECORDS.filter(lr => lr._pendingSync);
     return [...GS_RECORDS, ...pendingLocal];
+  }
+  // Si hay usuario logueado y no es admin, no mostrar RAW_DATA (son datos de Antonio)
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.rol !== 'admin') {
+    return [...LOCAL_RECORDS];
   }
   return [...ALL_RECORDS, ...LOCAL_RECORDS];
 }
@@ -2728,9 +2735,10 @@ function saveRecord() {
     status: document.getElementById('f-status').value,
     horaInicio: (() => { const h = document.getElementById('f-hinicio-h').value; const m = document.getElementById('f-hinicio-m').value; return (h && m) ? h + ':' + m : ''; })(),
     horaFin: (() => { const h = document.getElementById('f-hfin-h').value; const m = document.getElementById('f-hfin-m').value; return (h && m) ? h + ':' + m : ''; })(),
-    _sheet: grupo,    // hoja destino = grupo
+    _sheet: grupo,
     _local: true,
-    _id: window._editingRecord?._id || Date.now()
+    _id: window._editingRecord?._id || Date.now(),
+    owner_id: CURRENT_USER ? CURRENT_USER.id : null
   };
 
   // ── Modo Edición: actualizar registro existente ──
