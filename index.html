@@ -483,9 +483,246 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   .dash-grid{grid-template-columns:1fr}
 }
 
+
+/* ═══════════════════════════════════════
+   AUTH — Login & Onboarding
+═══════════════════════════════════════ */
+.auth-overlay {
+  position: fixed; inset: 0; z-index: 99999;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,100,200,0.12) 0%, transparent 60%),
+    linear-gradient(rgba(28,47,74,0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28,47,74,0.15) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.auth-card {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%; max-width: 440px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  animation: authIn 0.3s cubic-bezier(0.3,1.2,0.6,1);
+}
+@keyframes authIn {
+  from { opacity:0; transform: translateY(16px) scale(0.97); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+.auth-logo {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 32px;
+}
+.auth-logo-icon {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, #00cfff, #0044bb);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; box-shadow: var(--glow-a);
+}
+.auth-logo-text { display: flex; flex-direction: column; gap: 2px; }
+.auth-logo-name { font-family: var(--display); font-size: 16px; font-weight: 900; color: var(--text); letter-spacing: 3px; }
+.auth-logo-sub  { font-family: var(--mono); font-size: 9px; color: var(--accent); letter-spacing: 2px; opacity: 0.7; }
+.auth-title { font-family: var(--display); font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+.auth-subtitle { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-bottom: 28px; }
+.auth-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.auth-label { font-family: var(--mono); font-size: 9px; letter-spacing: 1.5px; color: var(--text3); text-transform: uppercase; }
+.auth-input {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 14px;
+  color: var(--text); font-family: var(--font); font-size: 14px;
+  outline: none; transition: all 0.15s; width: 100%;
+}
+.auth-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,207,255,0.08); }
+.auth-input::placeholder { color: var(--text3); }
+.auth-btn {
+  width: 100%; padding: 13px; margin-top: 8px;
+  background: linear-gradient(135deg, #0090cc, #0044bb);
+  border: none; border-radius: var(--radius-sm);
+  color: #fff; font-family: var(--font); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+}
+.auth-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,68,187,0.45); }
+.auth-btn:active { transform: translateY(0); }
+.auth-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.auth-error {
+  background: var(--red-bg); border: 1px solid rgba(255,61,90,0.25);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  color: var(--red); font-family: var(--mono); font-size: 11px;
+  margin-top: 12px; display: none;
+}
+.auth-divider {
+  height: 1px; background: var(--border); margin: 28px 0;
+}
+/* Onboarding */
+.onb-step { display: none; }
+.onb-step.active { display: block; animation: authIn 0.25s ease; }
+.onb-progress {
+  display: flex; gap: 6px; margin-bottom: 28px;
+}
+.onb-dot {
+  height: 3px; flex: 1; border-radius: 2px;
+  background: var(--border2); transition: background 0.3s;
+}
+.onb-dot.done { background: var(--accent); }
+.sistemas-grid {
+  display: flex; flex-direction: column; gap: 0;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  overflow: hidden; margin-bottom: 20px;
+}
+.sistema-add-row {
+  display: flex; gap: 8px; margin-bottom: 16px; align-items: center;
+}
+.sistema-add-input {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 9px 12px;
+  color: var(--text); font-family: var(--mono); font-size: 12px; outline: none;
+  transition: border-color 0.15s;
+}
+.sistema-add-input:focus { border-color: var(--accent); }
+.sistema-add-btn {
+  padding: 9px 16px; background: var(--accent-glow);
+  border: 1px solid rgba(0,207,255,0.25); border-radius: var(--radius-sm);
+  color: var(--accent); font-size: 18px; cursor: pointer; line-height: 1;
+  transition: all 0.15s;
+}
+.sistema-add-btn:hover { background: var(--accent-glo2); }
+.sistema-tag {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  font-family: var(--mono); font-size: 12px; color: var(--text2);
+  background: var(--surface2); transition: background 0.1s;
+}
+.sistema-tag:last-child { border-bottom: none; }
+.sistema-tag:hover { background: var(--surface3); }
+.sistema-tag-del {
+  background: none; border: none; color: var(--text3); cursor: pointer;
+  font-size: 14px; padding: 2px 6px; border-radius: 3px; transition: all 0.12s;
+}
+.sistema-tag-del:hover { color: var(--red); background: var(--red-bg); }
+.sistemas-empty {
+  padding: 20px; text-align: center;
+  font-family: var(--mono); font-size: 11px; color: var(--text3);
+}
+/* User badge en topbar */
+.user-badge {
+  display: flex; align-items: center; gap: 7px;
+  padding: 5px 10px; border-radius: var(--radius-sm);
+  background: var(--surface2); border: 1px solid var(--border);
+  cursor: pointer; transition: all 0.15s; position: relative;
+}
+.user-badge:hover { border-color: var(--border2); }
+.user-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg, #00cfff, #0044bb);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.user-name  { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+.user-rol   { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; }
+.user-menu {
+  position: absolute; top: calc(100% + 6px); right: 0;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); min-width: 180px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; z-index: 9999;
+  overflow: hidden;
+}
+.user-menu.open { display: block; animation: dropIn 0.14s ease; }
+.user-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; font-family: var(--mono); font-size: 12px;
+  color: var(--text2); cursor: pointer; transition: background 0.1s;
+  border: none; background: none; width: 100%; text-align: left;
+}
+.user-menu-item:hover { background: var(--surface3); color: var(--text); }
+.user-menu-item.danger { color: var(--red); }
+.user-menu-item.danger:hover { background: var(--red-bg); }
+
 </style>
 </head>
 <body>
+
+
+<!-- ═══════════════════════════════════════
+     AUTH OVERLAY — Login & Onboarding
+═══════════════════════════════════════ -->
+<div id="auth-overlay" class="auth-overlay" style="display:none">
+  <div class="auth-card">
+
+    <!-- LOGO -->
+    <div class="auth-logo">
+      <div class="auth-logo-icon">⚡</div>
+      <div class="auth-logo-text">
+        <div class="auth-logo-name">TQS</div>
+        <div class="auth-logo-sub">RFC MANAGER</div>
+      </div>
+    </div>
+
+    <!-- ── STEP 1: LOGIN ── -->
+    <div id="auth-login-step">
+      <div class="auth-title">Iniciar Sesión</div>
+      <div class="auth-subtitle">Acceso restringido · Solo personal autorizado</div>
+
+      <div class="auth-field">
+        <div class="auth-label">Correo electrónico</div>
+        <input class="auth-input" id="auth-email" type="email" placeholder="tu@correo.com" autocomplete="email">
+      </div>
+      <div class="auth-field">
+        <div class="auth-label">Contraseña</div>
+        <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <div class="auth-error" id="auth-error">Correo o contraseña incorrectos</div>
+      <button class="auth-btn" id="auth-login-btn" onclick="doLogin()">Ingresar →</button>
+
+      <div class="auth-divider"></div>
+      <div style="text-align:center;font-family:var(--mono);font-size:10px;color:var(--text3)">
+        ¿Eres nuevo? Solicita acceso al administrador del sistema
+      </div>
+    </div>
+
+    <!-- ── STEP 2: ONBOARDING ── -->
+    <div id="auth-onboarding-step" style="display:none">
+      <div class="onb-progress">
+        <div class="onb-dot done" id="onb-dot-1"></div>
+        <div class="onb-dot" id="onb-dot-2"></div>
+      </div>
+
+      <div class="onb-step active" id="onb-step-1">
+        <div class="auth-title">¡Bienvenido!</div>
+        <div class="auth-subtitle" id="onb-welcome-msg">Primera vez en el sistema. Configuremos tu perfil.</div>
+
+        <div class="auth-field">
+          <div class="auth-label">¿Cómo te llamas?</div>
+          <input class="auth-input" id="onb-nombre" type="text" placeholder="Nombre completo">
+        </div>
+
+        <button class="auth-btn" onclick="onbNext()">Siguiente →</button>
+      </div>
+
+      <div class="onb-step" id="onb-step-2">
+        <div class="auth-title">Tus Sistemas RFC</div>
+        <div class="auth-subtitle">Agrega los sistemas SAP que administras. Aparecerán en tu menú lateral.</div>
+
+        <div class="sistema-add-row">
+          <input class="sistema-add-input" id="onb-sistema-input"
+            type="text" placeholder="Ej: CPROC, S4HANA, BTP..."
+            onkeydown="if(event.key==='Enter') addSistemaOnb()">
+          <button class="sistema-add-btn" onclick="addSistemaOnb()">+</button>
+        </div>
+
+        <div class="sistemas-grid" id="onb-sistemas-list">
+          <div class="sistemas-empty">Sin sistemas agregados aún</div>
+        </div>
+
+        <button class="auth-btn" id="onb-finish-btn" onclick="onbFinish()">Entrar al sistema →</button>
+        <div class="auth-error" id="onb-error">Agrega al menos un sistema para continuar</div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 <div id="toast-container" class="toast-container"></div>
 
@@ -558,7 +795,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   </div>
 </div>
 
-<div class="app">
+<div class="app" style="display:none">
 <!-- SIDEBAR -->
 <aside class="sidebar">
   <div class="sidebar-logo">
@@ -584,26 +821,8 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   </div>
 
   <div class="sidebar-section">Sistemas RFC</div>
-  <div class="nav-item" onclick="navigate('sheet','CPROC')" id="nav-CPROC">
-    <span class="icon">🔵</span><span>CPROC</span>
-  </div>
-  <div class="nav-item" onclick="navigate('sheet','SOLMAN')" id="nav-SOLMAN">
-    <span class="icon">🟢</span><span>SOLMAN</span>
-  </div>
-  <div class="nav-item" onclick="navigate('sheet','Data Staging')" id="nav-Data Staging">
-    <span class="icon">🗄️</span><span>Data Staging</span>
-  </div>
-  <div class="nav-item" onclick="navigate('sheet','Cloud Connector')" id="nav-Cloud Connector">
-    <span class="icon">☁️</span><span>Cloud Connector</span>
-  </div>
-  <div class="nav-item" onclick="navigate('sheet','Dynatrace')" id="nav-Dynatrace">
-    <span class="icon">📡</span><span>Dynatrace</span>
-  </div>
-  <div class="nav-item" onclick="navigate('sheet','SCM & EWM')" id="nav-SCM & EWM">
-    <span class="icon">🔷</span><span>SCM & EWM</span>
-  </div>
-  <div class="nav-item" onclick="navigate('sheet','FDE & FR')" id="nav-FDE & FR">
-    <span class="icon">🟣</span><span>FDE & FR</span>
+  <div id="sidebar-sistemas">
+    <!-- Construido dinámicamente por buildUserSidebar() -->
   </div>
 
 
@@ -619,6 +838,17 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
     <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
     <div class="topbar-right">
       <div style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="current-date"></div>
+      <!-- USER BADGE -->
+      <div class="user-badge" id="user-badge" style="display:none" onclick="toggleUserMenu()">
+        <div class="user-avatar">AL</div>
+        <div>
+          <div class="user-name">Usuario</div>
+          <div class="user-rol">ROL</div>
+        </div>
+        <div class="user-menu" id="user-menu">
+          <button class="user-menu-item" onclick="doLogout()">🚪 Cerrar sesión</button>
+        </div>
+      </div>
       <div id="gs-status" class="gs-status" onclick="loadFromSheets()" title="Click para recargar datos de Google Sheets">
         <span id="gs-dot" class="gs-dot"></span>
         <span id="gs-label">Sin conectar</span>
@@ -2815,15 +3045,303 @@ function toast(msg, type = 'success') {
 // ============================================================
 function showToast(msg, type='success') { toast(msg, type); }
 
+
+// ============================================================
+// AUTH SYSTEM — Login + Onboarding + Session
+// ============================================================
+
+const AUTH_SESSION_KEY = 'tqs_session';
+let CURRENT_USER = null;
+let _onbSistemas = [];
+
+// ── Helpers ──────────────────────────────────────────────────
+function authB64(str) { return btoa(unescape(encodeURIComponent(str))); }
+function authCheck(plain, hash) { return authB64(plain) === hash; }
+
+function saveSession(user) {
+  const session = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, sistemas: user.sistemas };
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+  CURRENT_USER = session;
+}
+function loadSession() {
+  try { return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null'); } catch { return null; }
+}
+function clearSession() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+  CURRENT_USER = null;
+}
+
+// ── Mostrar / ocultar overlay ─────────────────────────────────
+function showAuthOverlay() {
+  document.getElementById('auth-overlay').style.display = 'flex';
+  document.querySelector('.app').style.display = 'none';
+}
+function hideAuthOverlay() {
+  document.getElementById('auth-overlay').style.display = 'none';
+  document.querySelector('.app').style.display = 'flex';
+}
+
+// ── Login ────────────────────────────────────────────────────
+async function doLogin() {
+  const email    = document.getElementById('auth-email').value.trim().toLowerCase();
+  const password = document.getElementById('auth-password').value;
+  const errEl    = document.getElementById('auth-error');
+  const btn      = document.getElementById('auth-login-btn');
+
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Ingresa correo y contraseña'; errEl.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Verificando…';
+
+  try {
+    // Buscar usuario en Supabase
+    const data = await sbRequest('GET', `tqs_users?email=eq.${encodeURIComponent(email)}&limit=1&select=*`);
+    const user = data && data[0];
+
+    if (!user || !user.activo) {
+      errEl.textContent = 'Usuario no encontrado o inactivo';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Ingresar →';
+      return;
+    }
+
+    if (!authCheck(password, user.password_hash)) {
+      errEl.textContent = 'Contraseña incorrecta';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Ingresar →';
+      return;
+    }
+
+    // Login OK
+    if (user.primer_login) {
+      // Mostrar onboarding
+      document.getElementById('auth-login-step').style.display = 'none';
+      document.getElementById('auth-onboarding-step').style.display = 'block';
+      document.getElementById('onb-welcome-msg').textContent = 'Primera vez en el sistema. Configuremos tu perfil.';
+      // Guardar email temporalmente
+      window._onbEmail = email;
+      window._onbUserId = user.id;
+    } else {
+      // Acceso directo
+      saveSession(user);
+      onLoginSuccess(user);
+    }
+
+  } catch(e) {
+    errEl.textContent = 'Error de conexión: ' + e.message;
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Ingresar →';
+}
+
+// Enter key en login
+document.addEventListener('DOMContentLoaded', () => {
+  ['auth-email','auth-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  });
+});
+
+// ── Onboarding ────────────────────────────────────────────────
+function onbNext() {
+  const nombre = document.getElementById('onb-nombre').value.trim();
+  if (!nombre) { showToast('⚠️ Escribe tu nombre', 'warning'); return; }
+  window._onbNombre = nombre;
+  document.getElementById('onb-step-1').classList.remove('active');
+  document.getElementById('onb-step-2').classList.add('active');
+  document.getElementById('onb-dot-2').classList.add('done');
+  document.getElementById('onb-sistema-input').focus();
+}
+
+function addSistemaOnb() {
+  const input = document.getElementById('onb-sistema-input');
+  const val = input.value.trim().toUpperCase();
+  if (!val) return;
+  if (_onbSistemas.includes(val)) { input.value = ''; return; }
+  _onbSistemas.push(val);
+  renderOnbSistemas();
+  input.value = '';
+  input.focus();
+}
+
+function removeOnbSistema(s) {
+  _onbSistemas = _onbSistemas.filter(x => x !== s);
+  renderOnbSistemas();
+}
+
+function renderOnbSistemas() {
+  const el = document.getElementById('onb-sistemas-list');
+  if (_onbSistemas.length === 0) {
+    el.innerHTML = '<div class="sistemas-empty">Sin sistemas agregados aún</div>';
+  } else {
+    el.innerHTML = _onbSistemas.map(s =>
+      `<div class="sistema-tag">
+        <span>📋 ${s}</span>
+        <button class="sistema-tag-del" onclick="removeOnbSistema('${s}')">×</button>
+      </div>`
+    ).join('');
+  }
+}
+
+async function onbFinish() {
+  const errEl = document.getElementById('onb-error');
+  errEl.style.display = 'none';
+  if (_onbSistemas.length === 0) { errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('onb-finish-btn');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  try {
+    // Actualizar perfil en Supabase
+    const updated = await sbRequest('PATCH',
+      `tqs_users?id=eq.${window._onbUserId}`,
+      {
+        nombre: window._onbNombre,
+        sistemas: _onbSistemas,
+        primer_login: false,
+        updated_at: new Date().toISOString()
+      }
+    );
+
+    // Recargar usuario completo
+    const data = await sbRequest('GET', `tqs_users?id=eq.${window._onbUserId}&limit=1`);
+    const user = data && data[0];
+    saveSession(user);
+    onLoginSuccess(user);
+
+  } catch(e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Entrar al sistema →';
+  }
+}
+
+// ── Post-login ─────────────────────────────────────────────────
+function onLoginSuccess(user) {
+  hideAuthOverlay();
+  applyUserContext(user);
+  loadFromSheets();
+  showToast(`✅ Bienvenido, ${user.nombre}`, 'success');
+}
+
+function applyUserContext(user) {
+  CURRENT_USER = user;
+
+  // Actualizar user badge en topbar
+  const initials = (user.nombre || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+  const rolLabel = { admin:'ADMIN', tqs_leader:'TQS LEADER', fte:'FTE' }[user.rol] || user.rol.toUpperCase();
+
+  const badge = document.getElementById('user-badge');
+  if (badge) {
+    badge.querySelector('.user-avatar').textContent = initials;
+    badge.querySelector('.user-name').textContent = user.nombre;
+    badge.querySelector('.user-rol').textContent = rolLabel;
+    badge.style.display = 'flex';
+  }
+
+  // Construir sidebar dinámicamente según sistemas del usuario
+  buildUserSidebar(user);
+
+  // Aplicar restricciones por rol
+  applyRoleRestrictions(user.rol);
+}
+
+// ── Sidebar dinámico ──────────────────────────────────────────
+const SISTEMA_ICONS = {
+  'CPROC': '🔵', 'SOLMAN': '🟢', 'DATA STAGING': '🗄️',
+  'CLOUD CONNECTOR': '☁️', 'DYNATRACE': '📡',
+  'SCM & EWM': '🔷', 'FDE & FR': '🟣'
+};
+function getSistemaIcon(nombre) {
+  return SISTEMA_ICONS[nombre.toUpperCase()] || '📋';
+}
+
+function buildUserSidebar(user) {
+  const sistemas = user.sistemas || [];
+  const container = document.getElementById('sidebar-sistemas');
+  if (!container) return;
+
+  container.innerHTML = sistemas.map(s =>
+    `<div class="nav-item" onclick="navigate('sheet','${s.replace(/'/g,"\'")}',event)" id="nav-${CSS.escape(s)}">
+      <span class="icon">${getSistemaIcon(s)}</span><span>${s}</span>
+    </div>`
+  ).join('');
+}
+
+// ── Restricciones por rol ─────────────────────────────────────
+function applyRoleRestrictions(rol) {
+  // FTE y lectura
+  if (rol === 'fte') {
+    // Ocultar botones de edición y creación
+    document.querySelectorAll('#nav-nuevo, .btn-primary, .status-edit-btn, #gs-reload-btn').forEach(el => {
+      if (el) el.style.display = 'none';
+    });
+  }
+  // Solo admin ve Export DB_OLD y DELETE_DB_OLD
+  if (rol !== 'admin') {
+    const exportBtn = document.querySelector('[onclick="exportOldDB()"]');
+    const deleteBtn = document.querySelector('[onclick="confirmDeleteOldDB()"]');
+    if (exportBtn) exportBtn.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+  }
+}
+
+// ── User menu ──────────────────────────────────────────────────
+function toggleUserMenu() {
+  const menu = document.getElementById('user-menu');
+  if (menu) menu.classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  const badge = document.getElementById('user-badge');
+  const menu  = document.getElementById('user-menu');
+  if (menu && badge && !badge.contains(e.target)) menu.classList.remove('open');
+});
+
+function doLogout() {
+  clearSession();
+  CURRENT_USER = null;
+  // Reset sidebar
+  const container = document.getElementById('sidebar-sistemas');
+  if (container) container.innerHTML = '';
+  // Mostrar overlay de login
+  document.getElementById('auth-login-step').style.display = 'block';
+  document.getElementById('auth-onboarding-step').style.display = 'none';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-error').style.display = 'none';
+  showAuthOverlay();
+  showToast('Sesión cerrada', 'info');
+}
+
+// ── Proteger navigate() con rol ───────────────────────────────
+const _origNavigate = navigate;
+function navigate(page, sheetName, event) {
+  if (!CURRENT_USER) return;
+  // FTE solo puede ver, no crear/editar
+  if (page === 'nuevo' && CURRENT_USER.rol === 'fte') {
+    showToast('⚠️ No tienes permisos para crear registros', 'warning');
+    return;
+  }
+  _origNavigate(page, sheetName);
+}
+
+
 function init() {
   // Date
   document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-MX', {
     weekday:'short', day:'2-digit', month:'short', year:'numeric'
   });
 
-  // Auto-conectar a Supabase siempre al cargar
-  setGSStatus('connecting');
-  loadFromSheets();
+  // Auto-connect to Sheets if URL exists
+  if (GS_URL) {
+    setGSStatus('connecting');
+    loadFromSheets();
+  } else {
+    setGSStatus('offline');
+    updateAlertBadge();
+    renderDashboard();
+  }
 
   // Wire up GS buttons via addEventListener (more reliable than onclick)
   const gsBtn = document.getElementById('gs-config-btn');
