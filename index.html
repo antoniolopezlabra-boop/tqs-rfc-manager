@@ -3243,7 +3243,7 @@ async function loadTQSParaFTE() {
     }
     el.innerHTML = tqsList.map(tqs => {
       const sistemas = (tqs.sistemas || []).join(', ') || 'Sin sistemas configurados';
-      return '<div class="sistema-tag" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;padding:12px 14px" onclick="toggleTQSSeleccion('' + tqs.id + '',this)" id="tqs-opt-' + tqs.id + '">' +
+      return '<div class="sistema-tag" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;padding:12px 14px" onclick="toggleTQSSeleccion(\'' + tqs.id + '\',this)" id="tqs-opt-' + tqs.id + '">' +
         '<div style="display:flex;align-items:center;gap:8px;width:100%">' +
         '<div style="width:18px;height:18px;border-radius:3px;border:2px solid var(--border2);background:transparent;flex-shrink:0;transition:all 0.15s" id="tqs-check-' + tqs.id + '"></div>' +
         '<span style="font-weight:600;color:var(--text)">' + tqs.nombre + '</span>' +
