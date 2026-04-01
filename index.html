@@ -1580,10 +1580,10 @@ function deleteRecord(r) {
 
   // 3. Eliminar de Supabase
   if (r._id) {
-    sbRequest('DELETE', \`rfcs?id=eq.\${r._id}\`).then(() => {
-      showToast(\`✅ Eliminado de Supabase: \${ticketLabel}\`, 'success');
+    sbRequest('DELETE', `rfcs?id=eq.${r._id}`).then(() => {
+      showToast(`✅ Eliminado de Supabase: ${ticketLabel}`, 'success');
     }).catch(err => {
-      showToast(\`⚠️ Eliminado de UI. Error Supabase: \${err.message}\`, 'warning');
+      showToast(`⚠️ Eliminado de UI. Error Supabase: ${err.message}`, 'warning');
     });
   }
 }
