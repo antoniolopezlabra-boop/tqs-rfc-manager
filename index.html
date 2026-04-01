@@ -2,9 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+  <meta name="description" content="TQS RFC Manager — Control de cambios SAP, gestión de RFCs y ventanas de mantenimiento para KOF. Portal interno EAS Consulting.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#040810">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TQS — Control de RFCs | Antonio López</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700;800&family=Share+Tech+Mono&family=Orbitron:wght@700;900&display=swap');
@@ -639,6 +643,17 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
 .user-menu-item.danger { color: var(--red); }
 .user-menu-item.danger:hover { background: var(--red-bg); }
 
+
+/* ── Accesibilidad: foco visible para navegación por teclado ── */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 </style>
 </head>
 <body>
@@ -666,15 +681,15 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
 
       <div class="auth-field">
         <div class="auth-label">Correo electrónico</div>
-        <input class="auth-input" id="auth-email" type="email" placeholder="tu@correo.com" autocomplete="email">
+        <input class="auth-input" id="auth-email" type="email" placeholder="tu@correo.com" autocomplete="email" aria-label="Correo electrónico">
       </div>
       <div class="auth-field">
         <div class="auth-label">Contraseña</div>
-        <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        <input class="auth-input" id="auth-password" type="password" placeholder="••••••••" autocomplete="current-password" aria-label="Contraseña">
       </div>
 
       <div class="auth-error" id="auth-error">Correo o contraseña incorrectos</div>
-      <button class="auth-btn" id="auth-login-btn" onclick="doLogin()">Ingresar →</button>
+      <button class="auth-btn" id="auth-login-btn" aria-label="Iniciar sesión" onclick="doLogin()">Ingresar →</button>
 
       <div class="auth-divider"></div>
       <div style="text-align:center;font-family:var(--mono);font-size:10px;color:var(--text3)">
@@ -698,7 +713,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <input class="auth-input" id="onb-nombre" type="text" placeholder="Nombre completo">
         </div>
 
-        <button class="auth-btn" onclick="onbNext()">Siguiente →</button>
+        <button class="auth-btn" aria-label="Siguiente paso de configuración" onclick="onbNext()">Siguiente →</button>
       </div>
 
       <!-- PASO 2 TQS: Agregar sistemas -->
@@ -710,14 +725,14 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <input class="sistema-add-input" id="onb-sistema-input"
             type="text" placeholder="Ej: CPROC, S4HANA, BTP..."
             onkeydown="if(event.key==='Enter') addSistemaOnb()">
-          <button class="sistema-add-btn" onclick="addSistemaOnb()">+</button>
+          <button class="sistema-add-btn" aria-label="Agregar sistema" onclick="addSistemaOnb()">+</button>
         </div>
 
         <div class="sistemas-grid" id="onb-sistemas-list">
           <div class="sistemas-empty">Sin sistemas agregados aún</div>
         </div>
 
-        <button class="auth-btn" id="onb-finish-btn" onclick="onbFinish()">Entrar al sistema →</button>
+        <button class="auth-btn" id="onb-finish-btn" aria-label="Finalizar configuración y entrar" onclick="onbFinish()">Entrar al sistema →</button>
         <div class="auth-error" id="onb-error">Agrega al menos un sistema para continuar</div>
       </div>
 
@@ -730,7 +745,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <div class="sistemas-empty">Cargando TQS Leaders...</div>
         </div>
 
-        <button class="auth-btn" id="onb-finish-fte-btn" onclick="onbFinishFTE()">Entrar al sistema →</button>
+        <button class="auth-btn" id="onb-finish-fte-btn" aria-label="Confirmar selección y entrar" onclick="onbFinishFTE()">Entrar al sistema →</button>
         <div class="auth-error" id="onb-error-fte">Selecciona al menos un TQS Leader para continuar</div>
       </div>
     </div>
@@ -774,12 +789,12 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
       </div>
       <div id="gs-test-result" style="display:none;padding:10px 14px;border-radius:var(--radius-sm);font-size:12px"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn btn-ghost btn-sm" onclick="testGSConnection()">🔗 Probar conexión</button>
-        <button class="btn btn-primary btn-sm" onclick="saveGSConfig()">💾 Guardar y conectar</button>
+        <button class="btn btn-ghost btn-sm" aria-label="Probar conexión con Supabase" onclick="testGSConnection()">🔗 Probar conexión</button>
+        <button class="btn btn-primary btn-sm" aria-label="Guardar configuración de conexión" onclick="saveGSConfig()">💾 Guardar y conectar</button>
       </div>
 
       <div id="gs-disconnect-section" style="border-top:1px solid var(--border);padding-top:12px;display:none">
-        <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red);opacity:.7" onclick="disconnectSheets()">🔌 Desconectar Google Sheets</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);border-color:var(--red);opacity:.7" aria-label="Desconectar Google Sheets" onclick="disconnectSheets()">🔌 Desconectar Google Sheets</button>
       </div>
     </div>
   </div>
@@ -833,7 +848,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   </div>
 
   <div style="padding:8px 14px;border-top:1px solid var(--border)">
-    <button onclick="doLogout()" style="
+    <button aria-label="Cerrar sesión" onclick="doLogout()" style="
       width:100%;display:flex;align-items:center;gap:8px;
       padding:8px 10px;border-radius:var(--radius-sm);
       background:transparent;border:1px solid transparent;
@@ -852,7 +867,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
 </aside>
 
 <!-- MAIN -->
-<div class="main">
+<div class="main" role="main">
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
     <div class="topbar-right">
@@ -872,10 +887,10 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
         <span id="gs-dot" class="gs-dot"></span>
         <span id="gs-label">Sin conectar</span>
       </div>
-      <button class="btn btn-ghost btn-sm" id="gs-config-btn" title="Configurar Google Sheets">⚙️ Supabase</button>
-      <button class="btn btn-ghost btn-sm" id="gs-reload-btn" title="Recargar datos de Sheets" style="display:none">🔄</button>
-      <button class="btn btn-ghost btn-sm" onclick="exportOldDB()" title="Exportar registros de años anteriores (CSV ejecutivo)" style="border-color:var(--yellow);color:var(--yellow);font-size:11px">📤 Export DB_OLD</button>
-      <button class="btn btn-ghost btn-sm" onclick="confirmDeleteOldDB()" title="Depurar BD — mantiene solo año actual y anterior" style="border-color:var(--red);color:var(--red);font-size:11px">🗑️ DELETE_DB_OLD</button>
+      <button class="btn btn-ghost btn-sm" id="gs-config-btn" aria-label="Configuración de Supabase" title="Configurar Google Sheets">⚙️ Supabase</button>
+      <button class="btn btn-ghost btn-sm" id="gs-reload-btn" aria-label="Recargar datos de Supabase" title="Recargar datos de Sheets" style="display:none">🔄</button>
+      <button class="btn btn-ghost btn-sm" aria-label="Exportar registros históricos" onclick="exportOldDB()" title="Exportar registros de años anteriores (CSV ejecutivo)" style="border-color:var(--yellow);color:var(--yellow);font-size:11px">📤 Export DB_OLD</button>
+      <button class="btn btn-ghost btn-sm" aria-label="Eliminar registros históricos" onclick="confirmDeleteOldDB()" title="Depurar BD — mantiene solo año actual y anterior" style="border-color:var(--red);color:var(--red);font-size:11px">🗑️ DELETE_DB_OLD</button>
       <div id="auto-sync-badge"
         onclick="forceSyncNow()"
         title="Click para sincronizar ahora"
@@ -911,9 +926,9 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
             <input type="date" id="dash-date-from" style="background:transparent;border:none;color:var(--text2);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer" onchange="renderDashboard()">
             <span style="font-size:12px;color:var(--text3);font-weight:600">Hasta</span>
             <input type="date" id="dash-date-to" style="background:transparent;border:none;color:var(--text2);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer" onchange="renderDashboard()">
-            <button class="btn btn-ghost btn-sm" onclick="clearDashDates()" style="padding:2px 8px;font-size:11px" title="Limpiar fechas">✕</button>
+            <button class="btn btn-ghost btn-sm" aria-label="Limpiar filtro de fechas" onclick="clearDashDates()" style="padding:2px 8px;font-size:11px" title="Limpiar fechas">✕</button>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇️ Exportar CSV</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Exportar todos los RFCs a CSV" onclick="exportCSV()">⬇️ Exportar CSV</button>
         </div>
       </div>
 
@@ -947,8 +962,8 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
       <div class="page-header">
         <h1>⏳ En Espera de VOBO <span class="tag" id="vobo-count-tag">0</span></h1>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" onclick="navigate('dashboard')">← Dashboard</button>
-          <button class="btn btn-ghost btn-sm" onclick="exportVOBOcsv()">⬇️ CSV</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Volver al Dashboard" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Exportar RFCs en espera a CSV" onclick="exportVOBOcsv()">⬇️ CSV</button>
         </div>
       </div>
       <div id="vobo-table-content"></div>
@@ -958,7 +973,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
     <div class="page" id="page-usuarios">
       <div class="page-header">
         <h1>👥 Gestión de Usuarios <span class="tag" id="users-count-tag">0</span></h1>
-        <button class="btn btn-primary btn-sm" onclick="showNewUserModal()">➕ Nuevo Usuario</button>
+        <button class="btn btn-primary btn-sm" aria-label="Crear nuevo usuario" onclick="showNewUserModal()">➕ Nuevo Usuario</button>
       </div>
       <div id="users-table-content">
         <div class="empty-state"><span class="icon">⏳</span><p>Cargando usuarios...</p></div>
@@ -1076,8 +1091,8 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <textarea class="form-textarea" id="f-observaciones" placeholder="Ej: Se brinda el vobo y se solicita el del cliente..." rows="3"></textarea>
         </div>
         <div class="form-actions">
-          <button class="btn btn-ghost" onclick="clearForm()">🗑️ Limpiar</button>
-          <button class="btn btn-primary" onclick="saveRecord()">💾 Guardar Registro</button>
+          <button class="btn btn-ghost" aria-label="Limpiar formulario" onclick="clearForm()">🗑️ Limpiar</button>
+          <button class="btn btn-primary" aria-label="Guardar registro RFC" onclick="saveRecord()">💾 Guardar Registro</button>
         </div>
       </div>
     </div>
@@ -1087,7 +1102,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
       <div class="page-header">
         <h1 id="sheet-page-title">Sistema</h1>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" onclick="showExportMPPModal()" style="border-color:var(--green);color:var(--green)">📋 CSV</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Exportar para MS Project" onclick="showExportMPPModal()" style="border-color:var(--green);color:var(--green)">📋 CSV</button>
         </div>
       </div>
       <div class="filters-bar">
@@ -1110,7 +1125,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
         <div class="table-header">
           <span class="table-count" id="table-count">0 registros</span>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-ghost btn-sm" onclick="clearAllColFilters()" id="clear-all-btn" style="display:none">✕ Limpiar filtros</button>
+            <button class="btn btn-ghost btn-sm" onclick="clearAllColFilters()" id="clear-all-btn" aria-label="Limpiar todos los filtros de columna" style="display:none">✕ Limpiar filtros</button>
           </div>
         </div>
         <div class="table-scroll">
@@ -1129,8 +1144,8 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
         <input class="col-search" id="col-search" type="text" placeholder="Buscar valor...">
         <div class="col-dropdown-list" id="col-dropdown-list"></div>
         <div class="col-dropdown-footer">
-          <button class="btn-clear-f col-dropdown-footer" onclick="clearColFilter()">✕ Limpiar</button>
-          <button class="btn-apply col-dropdown-footer" onclick="applyColFilter()">✓ Aplicar</button>
+          <button class="btn-clear-f col-dropdown-footer" aria-label="Limpiar filtro de columna" onclick="clearColFilter()">✕ Limpiar</button>
+          <button class="btn-apply col-dropdown-footer" aria-label="Aplicar filtro de columna" onclick="applyColFilter()">✓ Aplicar</button>
         </div>
       </div>
     </div>
@@ -3876,7 +3891,7 @@ init();
         </select>
       </div>
       <div id="nu-error" class="auth-error"></div>
-      <button class="auth-btn" onclick="createNewUser()">💾 Crear Usuario</button>
+      <button class="auth-btn" aria-label="Crear nuevo usuario en el sistema" onclick="createNewUser()">💾 Crear Usuario</button>
     </div>
   </div>
 </div>
