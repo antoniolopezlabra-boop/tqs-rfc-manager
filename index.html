@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+  <meta name="description" content="TQS RFC Manager - Control de cambios SAP para KOF">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TQS — Control de RFCs | Antonio López</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -674,7 +675,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
       </div>
 
       <div class="auth-error" id="auth-error">Correo o contraseña incorrectos</div>
-      <button class="auth-btn" id="auth-login-btn" onclick="doLogin()">Ingresar →</button>
+      <button class="auth-btn" id="auth-login-btn" aria-label="Iniciar sesion" onclick="doLogin()">Ingresar →</button>
 
       <div class="auth-divider"></div>
       <div style="text-align:center;font-family:var(--mono);font-size:10px;color:var(--text3)">
@@ -698,7 +699,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <input class="auth-input" id="onb-nombre" type="text" placeholder="Nombre completo">
         </div>
 
-        <button class="auth-btn" onclick="onbNext()">Siguiente →</button>
+        <button class="auth-btn" aria-label="Siguiente paso" onclick="onbNext()">Siguiente →</button>
       </div>
 
       <!-- PASO 2 TQS: Agregar sistemas -->
@@ -710,14 +711,14 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <input class="sistema-add-input" id="onb-sistema-input"
             type="text" placeholder="Ej: CPROC, S4HANA, BTP..."
             onkeydown="if(event.key==='Enter') addSistemaOnb()">
-          <button class="sistema-add-btn" onclick="addSistemaOnb()">+</button>
+          <button class="sistema-add-btn" aria-label="Agregar sistema" onclick="addSistemaOnb()">+</button>
         </div>
 
         <div class="sistemas-grid" id="onb-sistemas-list">
           <div class="sistemas-empty">Sin sistemas agregados aún</div>
         </div>
 
-        <button class="auth-btn" id="onb-finish-btn" onclick="onbFinish()">Entrar al sistema →</button>
+        <button class="auth-btn" id="onb-finish-btn" aria-label="Finalizar configuracion" onclick="onbFinish()">Entrar al sistema →</button>
         <div class="auth-error" id="onb-error">Agrega al menos un sistema para continuar</div>
       </div>
 
@@ -730,7 +731,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
           <div class="sistemas-empty">Cargando TQS Leaders...</div>
         </div>
 
-        <button class="auth-btn" id="onb-finish-fte-btn" onclick="onbFinishFTE()">Entrar al sistema →</button>
+        <button class="auth-btn" id="onb-finish-fte-btn" aria-label="Finalizar configuracion FTE" onclick="onbFinishFTE()">Entrar al sistema →</button>
         <div class="auth-error" id="onb-error-fte">Selecciona al menos un TQS Leader para continuar</div>
       </div>
     </div>
@@ -745,7 +746,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">📋 Detalle del Registro</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modal-content"></div>
   </div>
@@ -756,7 +757,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   <div class="modal" style="max-width:520px">
     <div class="modal-header">
       <h2 style="font-size:15px">⚙️ Configurar Google Sheets</h2>
-      <button class="modal-close" onclick="document.getElementById('modal-gs-config').classList.remove('open')">✕</button>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-gs-config').classList.remove('open')">✕</button>
     </div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
       <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:14px;font-size:12px;color:var(--text2);line-height:1.9">
@@ -774,8 +775,8 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
       </div>
       <div id="gs-test-result" style="display:none;padding:10px 14px;border-radius:var(--radius-sm);font-size:12px"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn btn-ghost btn-sm" onclick="testGSConnection()">🔗 Probar conexión</button>
-        <button class="btn btn-primary btn-sm" onclick="saveGSConfig()">💾 Guardar y conectar</button>
+        <button class="btn btn-ghost btn-sm" aria-label="Probar conexion" onclick="testGSConnection()">🔗 Probar conexión</button>
+        <button class="btn btn-primary btn-sm" aria-label="Guardar configuracion" onclick="saveGSConfig()">💾 Guardar y conectar</button>
       </div>
       <div id="gs-migration-section" style="display:none;border-top:1px solid var(--border);padding-top:14px">
         <div style="font-size:12px;color:var(--text2);margin-bottom:10px">
@@ -803,7 +804,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">🔔 Alertas Activas</div>
-      <button class="modal-close" onclick="document.getElementById('modal-alerts').classList.remove('open')">✕</button>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-alerts').classList.remove('open')">✕</button>
     </div>
     <div class="modal-body" id="modal-alerts-content"></div>
   </div>
@@ -865,20 +866,20 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
 </aside>
 
 <!-- MAIN -->
-<div class="main">
+<div class="main" role="main">
   <div class="topbar">
     <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
     <div class="topbar-right">
       <div style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="current-date"></div>
       <!-- USER BADGE -->
-      <div class="user-badge" id="user-badge" style="display:none" onclick="toggleUserMenu()">
+      <div class="user-badge" id="user-badge" style="display:none" aria-label="Menu de usuario" onclick="toggleUserMenu()">
         <div class="user-avatar">AL</div>
         <div>
           <div class="user-name">Usuario</div>
           <div class="user-rol">ROL</div>
         </div>
         <div class="user-menu" id="user-menu">
-          <button class="user-menu-item" onclick="doLogout()">🚪 Cerrar sesión</button>
+          <button class="user-menu-item" aria-label="Cerrar sesion" onclick="doLogout()">🚪 Cerrar sesión</button>
         </div>
       </div>
       <div id="gs-status" class="gs-status" onclick="loadFromSheets()" title="Click para recargar datos de Google Sheets">
@@ -926,7 +927,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
             <input type="date" id="dash-date-to" style="background:transparent;border:none;color:var(--text2);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer" onchange="renderDashboard()">
             <button class="btn btn-ghost btn-sm" onclick="clearDashDates()" style="padding:2px 8px;font-size:11px" title="Limpiar fechas">✕</button>
           </div>
-          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">⬇️ Exportar CSV</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Exportar CSV" onclick="exportCSV()">⬇️ Exportar CSV</button>
         </div>
       </div>
 
@@ -971,7 +972,7 @@ tbody td.desc{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space
     <div class="page" id="page-usuarios">
       <div class="page-header">
         <h1>👥 Gestión de Usuarios <span class="tag" id="users-count-tag">0</span></h1>
-        <button class="btn btn-primary btn-sm" onclick="showNewUserModal()">➕ Nuevo Usuario</button>
+        <button class="btn btn-primary btn-sm" aria-label="Crear nuevo usuario" onclick="showNewUserModal()">➕ Nuevo Usuario</button>
       </div>
       <div id="users-table-content">
         <div class="empty-state"><span class="icon">⏳</span><p>Cargando usuarios...</p></div>
@@ -3962,7 +3963,7 @@ init();
   <div class="modal" style="max-width:480px">
     <div class="modal-header">
       <div class="modal-title">➕ Nuevo Usuario</div>
-      <button class="modal-close" onclick="document.getElementById('modal-new-user').classList.remove('open')">✕</button>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-new-user').classList.remove('open')">✕</button>
     </div>
     <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
       <div class="auth-field">
