@@ -760,7 +760,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">📋 Detalle del Registro</div>
-      <button class="modal-close" aria-label="Cerrar detalle" onclick="closeModal()">✕</button>
+      <button class="modal-close" aria-label="Cerrar detalle" aria-label="Cerrar detalle del RFC" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modal-content"></div>
   </div>
@@ -805,7 +805,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">🔔 Alertas Activas</div>
-      <button class="modal-close" aria-label="Cerrar alertas" onclick="document.getElementById('modal-alerts').classList.remove('open')">✕</button>
+      <button class="modal-close" aria-label="Cerrar alertas" aria-label="Cerrar panel de alertas" onclick="document.getElementById('modal-alerts').classList.remove('open')">✕</button>
     </div>
     <div class="modal-body" id="modal-alerts-content"></div>
   </div>
@@ -2026,7 +2026,7 @@ function renderVoboPage() {
       <td>${daysLeft !== null ? `<span style="font-weight:700;color:${daysLeft<=1?'var(--red)':daysLeft<=3?'var(--orange)':'var(--yellow)'}">${daysLeft===0?'¡HOY!':daysLeft+' días'}</span>` : '—'}</td>
       <td>
         <div style="display:flex;gap:4px;align-items:center">
-          <button class="btn btn-ghost btn-sm" onclick='event.stopPropagation();showDetail(${rowJson})' title="Ver detalle">👁</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Ver detalle" onclick='event.stopPropagation();showDetail(${rowJson})' title="Ver detalle">👁</button>
           <span style="font-size:11px;color:var(--accent2);white-space:nowrap">↗ Ver sistema</span>
         </div>
       </td>
@@ -2135,13 +2135,13 @@ function buildTableHeader() {
       <div class="th-right">`;
 
     if (col.sortable) {
-      inner += `<button class="sort-btn ${sortClass}" onclick="toggleSort('${col.key}',event)" title="Ordenar">
+      inner += `<button class="sort-btn ${sortClass}" aria-label="Ordenar por ${col.label}" onclick="toggleSort('${col.key}',event)" title="Ordenar">
         <span class="sort-arrow ${isSortAsc ? '' : 'dim'}">▲</span>
         <span class="sort-arrow ${isSortDesc ? '' : 'dim'}">▼</span>
       </button>`;
     }
     if (col.filterable) {
-      inner += `<button class="col-filter-btn ${hasFilter ? 'active' : ''}" onclick="openColDropdown('${col.key}',event)" title="Filtrar">⚡</button>`;
+      inner += `<button class="col-filter-btn ${hasFilter ? 'active' : ''}" aria-label="Filtrar por ${col.label}" onclick="openColDropdown('${col.key}',event)" title="Filtrar">⚡</button>`;
     }
     inner += `</div></div>`;
 
@@ -2391,7 +2391,7 @@ function renderTable() {
       <td><button class="status-edit-btn badge ${getStatusClass(r.status)}" onclick="openStatusEdit(event, window._tableSlice[${idx}])" title="Click para cambiar status">${getStatusLabel(r.status)} ✏️</button></td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaInicio)}</td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaFin)}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="showDetail(window._tableSlice[${idx}])">👁</button></td>
+      <td><button class="btn btn-ghost btn-sm" aria-label="Ver detalle del RFC" onclick="showDetail(window._tableSlice[${idx}])">👁</button></td>
     </tr>`;
   }).join('');
 
@@ -2457,7 +2457,7 @@ function showDetail(r) {
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
         <span class="badge ${getStatusClass(r.status)}" style="font-size:12px">${r.status||'Sin status'}</span>
-        <button onclick="editFromDetail()" style="
+        <button aria-label="Editar este RFC" onclick="editFromDetail()" style="
           display:inline-flex;align-items:center;gap:5px;
           padding:6px 12px;border-radius:6px;
           background:var(--accent-glow);border:1px solid rgba(0,207,255,0.25);
@@ -2535,7 +2535,7 @@ function editFromDetail() {
       const banner = document.createElement('div');
       banner.id = 'edit-mode-banner';
       banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:14px;background:rgba(0,207,255,0.06);border:1px solid rgba(0,207,255,0.2);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--accent)';
-      banner.innerHTML = `✏️ Editando: <b>${r.ticket||'?'}</b> &nbsp;·&nbsp; <span style="cursor:pointer;color:var(--text3);text-decoration:underline" onclick="cancelEdit()">Cancelar edición</span>`;
+      banner.innerHTML = `✏️ Editando: <b>${r.ticket||'?'}</b> &nbsp;·&nbsp; <span style="cursor:pointer;color:var(--text3);text-decoration:underline" onclick="cancelEdit()" aria-label="Cancelar edición del RFC">Cancelar edición</span>`;
       formSection.parentNode.insertBefore(banner, formSection);
     }
   }, 80);
@@ -3360,10 +3360,10 @@ async function renderUsersPage() {
       <td style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.primer_login?'Pendiente':'Completado'}</td>
       <td>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="viewUserSystems('${u.id}','${u.nombre}')" title="Ver sistemas">📋</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Ver sistemas del usuario" onclick="viewUserSystems('${u.id}','${u.nombre}')" title="Ver sistemas">📋</button>
           ${u.activo 
-            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="toggleUserActivo('${u.id}',false,'${u.nombre}')" title="Desactivar">🚫</button>`
-            : `<button class="btn btn-ghost btn-sm" style="color:var(--green)" onclick="toggleUserActivo('${u.id}',true,'${u.nombre}')" title="Activar">✅</button>`
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Desactivar usuario" onclick="toggleUserActivo('${u.id}',false,'${u.nombre}')" title="Desactivar">🚫</button>`
+            : `<button class="btn btn-ghost btn-sm" style="color:var(--green)" aria-label="Activar usuario" onclick="toggleUserActivo('${u.id}',true,'${u.nombre}')" title="Activar">✅</button>`
           }
         </div>
       </td>
