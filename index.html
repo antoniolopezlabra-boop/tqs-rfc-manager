@@ -2617,7 +2617,7 @@ function saveRecord() {
     updateAlertBadge();
     renderDashboard();
     if (orig._id) {
-      sbRequest('PATCH', \`rfcs?id=eq.\${orig._id}\`, record)
+      sbRequest('PATCH', `rfcs?id=eq.${orig._id}`, record)
         .then(() => showToast('☁️ RFC actualizado en Supabase: ' + ticket, 'success'))
         .catch(e => showToast('⚠️ Actualizado en UI, error Supabase: ' + e.message, 'warning'));
     }
