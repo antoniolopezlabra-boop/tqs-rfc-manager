@@ -3063,7 +3063,7 @@ async function loadTQSParaFTE() {
   const el = document.getElementById('onb-tqs-list');
   el.innerHTML = '<div class="sistemas-empty">Cargando...</div>';
   try {
-    const tqsList = await sbRequest('GET', 'tqs_users?rol=eq.tqs_leader&activo=eq.true&select=id,nombre,sistemas');
+    const tqsList = await sbRequest('GET', 'tqs_users?rol=in.(tqs_leader,admin)&activo=eq.true&select=id,nombre,sistemas');
     if (!tqsList || tqsList.length === 0) {
       el.innerHTML = '<div class="sistemas-empty">No hay TQS Leaders disponibles aún</div>';
       return;
