@@ -3072,7 +3072,7 @@ async function loadTQSParaFTE() {
     tqsList.forEach(function(tqs) {
       const sistemas = (tqs.sistemas || []).join(', ') || 'Sin sistemas configurados';
       html += '<div class="sistema-tag" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;padding:12px 14px" ';
-      html += 'onclick="toggleTQSSeleccion(this,' + JSON.stringify(tqs.id) + ')" ';
+      html += 'onclick="toggleTQSSeleccion(' + JSON.stringify(tqs.id) + ',this)" ';
       html += 'id="tqs-opt-' + tqs.id + '">';
       html += '<div style="display:flex;align-items:center;gap:8px;width:100%">';
       html += '<div style="width:18px;height:18px;border-radius:3px;border:2px solid var(--border2);background:transparent;flex-shrink:0;transition:all 0.15s" id="tqs-check-' + tqs.id + '"></div>';
