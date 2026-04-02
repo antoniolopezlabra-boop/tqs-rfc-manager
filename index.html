@@ -3059,6 +3059,26 @@ async function onbNext() {
 
 // Cargar lista de TQS Leaders para que FTE seleccione
 let _onbTQSSeleccionados = new Set();
+
+function toggleTQSSeleccion(id) {
+  const check = document.getElementById('tqs-check-' + id);
+  const row   = document.getElementById('tqs-opt-'   + id);
+  if (!check || !row) return;
+  if (_onbTQSSeleccionados.has(id)) {
+    _onbTQSSeleccionados.delete(id);
+    check.style.background  = 'transparent';
+    check.style.borderColor = 'var(--border2)';
+    row.style.background    = '';
+    row.style.borderColor   = 'var(--border)';
+  } else {
+    _onbTQSSeleccionados.add(id);
+    check.style.background  = 'var(--accent)';
+    check.style.borderColor = 'var(--accent)';
+    row.style.background    = 'rgba(0,207,255,0.08)';
+    row.style.borderColor   = 'rgba(0,207,255,0.4)';
+  }
+}
+
 async function loadTQSParaFTE() {
   const el = document.getElementById('onb-tqs-list');
   el.innerHTML = '<div class="sistemas-empty">Cargando...</div>';
@@ -3068,43 +3088,32 @@ async function loadTQSParaFTE() {
       el.innerHTML = '<div class="sistemas-empty">No hay TQS Leaders disponibles aún</div>';
       return;
     }
-    let html = '';
-    tqsList.forEach(function(tqs) {
+    const items = tqsList.map(function(tqs) {
       const sistemas = (tqs.sistemas || []).join(', ') || 'Sin sistemas configurados';
-      html += '<div class="sistema-tag" style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;padding:12px 14px" ';
-      html += 'onclick="toggleTQSSeleccion(' + JSON.stringify(tqs.id) + ')" ';
-      html += 'id="tqs-opt-' + tqs.id + '">';
-      html += '<div style="display:flex;align-items:center;gap:8px;width:100%;pointer-events:none">';
-      html += '<div style="width:18px;height:18px;border-radius:3px;border:2px solid var(--border2);background:transparent;flex-shrink:0;transition:all 0.15s" id="tqs-check-' + tqs.id + '"></div>';
-      html += '<span style="font-weight:600;color:var(--text)">' + tqs.nombre + '</span>';
-      html += '<span style="font-size:9px;letter-spacing:1px;color:var(--accent);font-family:var(--mono);margin-left:auto">TQS LEADER</span>';
-      html += '</div>';
-      html += '<div style="font-size:11px;color:var(--text3);padding-left:26px">' + sistemas + '</div>';
-      html += '</div>';
+      return '<div class="sistema-tag tqs-selectable" '
+        + 'id="tqs-opt-' + tqs.id + '" '
+        + 'style="flex-direction:column;align-items:flex-start;gap:4px;cursor:pointer;' 
+        + 'padding:12px 14px;border:1px solid var(--border);border-radius:6px;margin-bottom:8px;transition:all 0.15s" '
+        + 'data-tqs-id="' + tqs.id + '">'
+        + '<div style="display:flex;align-items:center;gap:8px;width:100%;pointer-events:none">'
+        + '<div id="tqs-check-' + tqs.id + '" style="width:18px;height:18px;border-radius:3px;border:2px solid var(--border2);background:transparent;flex-shrink:0;transition:all 0.15s"></div>'
+        + '<span style="font-weight:600;color:var(--text)">' + tqs.nombre + '</span>'
+        + '<span style="font-size:9px;color:var(--accent);font-family:var(--mono);margin-left:auto">TQS LEADER</span>'
+        + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);padding-left:26px">' + sistemas + '</div>'
+        + '</div>';
     });
-    el.innerHTML = html;
+    el.innerHTML = items.join('');
+    el.addEventListener('click', function handler(e) {
+      const row = e.target.closest('.tqs-selectable');
+      if (!row) return;
+      toggleTQSSeleccion(row.getAttribute('data-tqs-id'));
+    });
   } catch(e) {
     el.innerHTML = '<div class="sistemas-empty">Error: ' + e.message + '</div>';
   }
 }
 
-
-function toggleTQSSeleccion(id) {
-  const check = document.getElementById('tqs-check-' + id);
-  const row   = document.getElementById('tqs-opt-' + id);
-  if (!check || !row) return;
-  if (_onbTQSSeleccionados.has(id)) {
-    _onbTQSSeleccionados.delete(id);
-    check.style.background  = 'transparent';
-    check.style.borderColor = 'var(--border2)';
-    row.style.background    = '';
-  } else {
-    _onbTQSSeleccionados.add(id);
-    check.style.background  = 'var(--accent)';
-    check.style.borderColor = 'var(--accent)';
-    row.style.background    = 'rgba(0,207,255,0.05)';
-  }
-}
 
 async function onbFinishFTE() {
   const errEl = document.getElementById('onb-error-fte');
