@@ -1253,9 +1253,29 @@ async function loadFromSheets() {
   GS_LOADING = true;
   setGSStatus('connecting');
   try {
-    // Filtrar por owner_id del usuario logueado (multitenant)
-    const ownerId = CURRENT_USER ? CURRENT_USER.id : null;
-    const filterParam = ownerId ? 'rfcs?select=*&owner_id=eq.' + ownerId + '&order=fecha.desc&limit=2000' : 'rfcs?select=*&order=fecha.desc&limit=2000';
+    // Filtrar por owner_id según el rol:
+    // - admin/tqs_leader: ve sus propios RFCs
+    // - fte: ve los RFCs de los TQS que sigue (siguiendo_tqs)
+    let filterParam;
+    if (CURRENT_USER && CURRENT_USER.rol === 'fte') {
+      // Obtener los IDs de TQS que sigue desde Supabase
+      const fteData = await sbRequest('GET', 'tqs_users?id=eq.' + CURRENT_USER.id + '&select=siguiendo_tqs');
+      const siguiendo = fteData && fteData[0] && fteData[0].siguiendo_tqs;
+      if (siguiendo && siguiendo.length > 0) {
+        filterParam = 'rfcs?select=*&owner_id=in.(' + siguiendo.join(',') + ')&order=fecha.desc&limit=2000';
+      } else {
+        // Sin TQS asignados aún
+        SB_RECORDS = []; GS_RECORDS = [];
+        setGSStatus('online');
+        renderDashboard();
+        showToast('⚠️ Sin TQS asignados. Contacta a tu administrador.', 'warning');
+        return;
+      }
+    } else {
+      // admin o tqs_leader: sus propios RFCs
+      const ownerId = CURRENT_USER ? CURRENT_USER.id : null;
+      filterParam = ownerId ? 'rfcs?select=*&owner_id=eq.' + ownerId + '&order=fecha.desc&limit=2000' : 'rfcs?select=*&order=fecha.desc&limit=2000';
+    }
     const data = await sbRequest('GET', filterParam);
     SB_RECORDS = (data || []).map(sbRowToRecord);
 
