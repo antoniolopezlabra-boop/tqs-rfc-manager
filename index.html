@@ -3719,47 +3719,28 @@ async function executeDeleteOldDB() {
   const currentYear = new Date().getFullYear();
   const keepYears = [currentYear, currentYear - 1];
   const minYear = Math.min(...keepYears);
-  const allSheets = ['CPROC','SOLMAN','Data Staging','Cloud Connector','Dynatrace','SCM & EWM','FDE & FR'];
 
-  toast('⏳ Depurando registros en Supabase...', 'info');
+  toast('⏳ Eliminando registros anteriores a ' + minYear + ' de Supabase...', 'info');
 
-  let totalDeleted = 0;
-  let gsError = false;
-
-  for (const sheet of allSheets) {
-    const toDelete = SB_RECORDS.filter(r => {
-      if (r._sheet !== sheet) return false;
-      const y = r.fecha ? parseInt(r.fecha.substring(0,4)) : null;
-      return y && !keepYears.includes(y);
-    });
-
-    if (toDelete.length === 0) continue;
-
-    try {
-      // Borrar directamente en Supabase por sistema_grupo y fecha
-      await sbRequest('DELETE', `rfcs?sistema_grupo=eq.${encodeURIComponent(sheet)}&fecha=lt.${minYear}-01-01`);
-      totalDeleted += toDelete.length;
-    } catch(e) {
-      gsError = true;
-    }
+  try {
+    // Borrar todos los registros con fecha anterior al año mínimo — una sola query
+    await sbRequest('DELETE', 'rfcs?fecha=lt.' + minYear + '-01-01');
 
     // Actualizar memoria local
     SB_RECORDS = SB_RECORDS.filter(r => {
-      if (r._sheet !== sheet) return true;
       const y = r.fecha ? parseInt(r.fecha.substring(0,4)) : null;
       return !y || keepYears.includes(y);
     });
     GS_RECORDS = SB_RECORDS;
-  }
 
-  renderDashboard();
-  if (currentSheet) renderTable();
-  updateAlertBadge();
-
-  if (gsError) {
-    toast(`⚠️ Depuración parcial (${totalDeleted} registros). Algunos errores.`, 'warning');
-  } else {
-    toast(`✅ ${totalDeleted} registros eliminados de Supabase. BD depurada.`, 'success');
+    renderDashboard();
+    if (currentSheet) renderTable();
+    updateAlertBadge();
+    // Recargar desde Supabase para reflejar el total correcto
+    await loadFromSheets();
+    toast('✅ Registros anteriores a ' + minYear + ' eliminados de Supabase.', 'success');
+  } catch(e) {
+    toast('⚠️ Error eliminando registros: ' + e.message, 'error');
   }
 }
 
