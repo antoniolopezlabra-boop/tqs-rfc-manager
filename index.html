@@ -1843,6 +1843,17 @@ function navigate(page, sheetName) {
     document.getElementById('page-vobo').classList.add('active');
     document.getElementById('topbar-title').textContent = '⏳ En Espera de VOBO';
     renderVoboPage();
+  } else if (page === 'nueva-solicitud') {
+    document.getElementById('page-nueva-solicitud').classList.add('active');
+    document.getElementById('nav-nueva-solicitud')?.classList.add('active');
+    document.getElementById('topbar-title').textContent = '📋 Nueva Solicitud';
+    solCargarTQSSelect();
+    if (!_solEditingId) solLimpiar();
+  } else if (page === 'solicitudes') {
+    document.getElementById('page-solicitudes').classList.add('active');
+    document.getElementById('nav-solicitudes')?.classList.add('active');
+    document.getElementById('topbar-title').textContent = '📂 Solicitudes';
+    solLoadAll();
   } else if (page === 'nuevo') {
     document.getElementById('page-nuevo').classList.add('active');
     document.getElementById('nav-nuevo').classList.add('active');
