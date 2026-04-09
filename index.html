@@ -654,6 +654,41 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ═══════════════════════════════════════
+   SOLICITUDES — Módulo tipo ServiceNow
+═══════════════════════════════════════ */
+.sol-card {
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:10px;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;
+}
+.sol-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sol-color,var(--accent))}
+.sol-card:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.sol-tipo{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;padding:2px 8px;border-radius:3px;font-weight:600}
+.sol-tipo-KIT{background:rgba(0,207,255,0.1);color:var(--accent);border:1px solid rgba(0,207,255,0.2)}
+.sol-tipo-Incidente{background:rgba(255,61,90,0.1);color:var(--red);border:1px solid rgba(255,61,90,0.2)}
+.sol-tipo-RCA{background:rgba(255,123,0,0.1);color:var(--orange);border:1px solid rgba(255,123,0,0.2)}
+.sol-tipo-Actividad{background:rgba(0,245,160,0.1);color:var(--green);border:1px solid rgba(0,245,160,0.2)}
+.sol-estatus{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:3px}
+.sol-est-Aprobado{background:var(--green-bg);color:var(--green)}
+.sol-est-proceso{background:var(--accent-glow);color:var(--accent)}
+.sol-est-espera{background:var(--yellow-bg);color:var(--yellow)}
+.sol-est-Cerrado{background:rgba(61,90,122,0.15);color:var(--text3)}
+.sol-est-Cancelado{background:var(--red-bg);color:var(--red)}
+.sol-est-reasignado{background:rgba(157,78,221,0.1);color:var(--purple)}
+.bitacora-entry{padding:10px 12px;border-left:2px solid var(--border2);margin-bottom:8px;background:var(--surface2);border-radius:0 6px 6px 0}
+.bitacora-ts{font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px}
+.action-item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.action-item-row:last-child{border-bottom:none}
+.sol-modal{position:fixed;inset:0;background:rgba(4,8,16,.92);z-index:9998;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.sol-modal.open{display:flex}
+.sol-modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);width:100%;max-width:780px;margin:auto;box-shadow:0 24px 60px rgba(0,0,0,.7)}
+.sol-modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.sol-modal-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.tqs-multi-select{display:flex;flex-direction:column;gap:4px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px;max-height:140px;overflow-y:auto;background:var(--bg2)}
+.tqs-multi-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;transition:background 0.1s;font-size:13px}
+.tqs-multi-item:hover{background:var(--surface2)}
+.tqs-multi-item input{accent-color:var(--accent);width:13px;height:13px;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -834,6 +869,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   </div>
   <div class="nav-item" onclick="navigate('nuevo')" id="nav-nuevo">
     <span class="icon">➕</span><span>Nuevo RFC</span>
+  </div>
+  <div class="nav-item" onclick="navigate('nueva-solicitud')" id="nav-nueva-solicitud">
+    <span class="icon">📋</span><span>Nueva Solicitud</span>
+  </div>
+  <div class="nav-item" onclick="navigate('solicitudes')" id="nav-solicitudes">
+    <span class="icon">📂</span><span>Solicitudes</span>
   </div>
 
   <div class="sidebar-section">Sistemas RFC</div>
@@ -3507,6 +3548,344 @@ function applyAdminUI(rol) {
     if (adminNav)     adminNav.style.display = '';
   }
 }
+
+// ============================================================
+// MÓDULO SOLICITUDES
+// ============================================================
+let SOL_RECORDS = [];
+let _solActionItems = [];
+let _solBitacora = [];
+let _solEditingId = null;
+let _solBitacoraTarget = null; // 'form' o id de solicitud
+
+const SOL_TIPO_COLORS = {
+  KIT: 'var(--accent)', Incidente: 'var(--red)',
+  RCA: 'var(--orange)', Actividad: 'var(--green)'
+};
+
+async function solLoadAll() {
+  try {
+    const ownerId = CURRENT_USER ? CURRENT_USER.id : null;
+    // TQS ve sus solicitudes + las grupales donde aparece en tqs_ids
+    const data = await sbRequest('GET', 'solicitudes?select=*&order=created_at.desc&limit=500');
+    // Filtrar: owner_id === me OR tqs_ids contiene mi id
+    SOL_RECORDS = (data || []).filter(s => {
+      if (s.owner_id === ownerId) return true;
+      if (Array.isArray(s.tqs_ids) && s.tqs_ids.includes(ownerId)) return true;
+      return false;
+    });
+    solRenderList();
+  } catch(e) {
+    showToast('⚠️ Error cargando solicitudes: ' + e.message, 'error');
+  }
+}
+
+async function solCargarTQSSelect() {
+  const container = document.getElementById('sol-tqs-list');
+  if (!container) return;
+  try {
+    const tqsList = await sbRequest('GET', 'tqs_users?rol=in.(tqs_leader,admin)&activo=eq.true&select=id,nombre,sistemas');
+    if (!tqsList || tqsList.length === 0) {
+      container.innerHTML = '<div style="color:var(--text3);font-size:12px">No hay TQS disponibles</div>';
+      return;
+    }
+    container.innerHTML = tqsList.map(t => `
+      <label class="tqs-multi-item">
+        <input type="checkbox" value="${t.id}" name="sol-tqs-cb">
+        <span>${t.nombre}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:auto">${(t.sistemas||[]).join(', ').substring(0,30)}</span>
+      </label>`).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--red);font-size:12px">Error: ' + e.message + '</div>';
+  }
+}
+
+function solGetTQSSeleccionados() {
+  return Array.from(document.querySelectorAll('input[name="sol-tqs-cb"]:checked')).map(cb => cb.value);
+}
+
+function solAddActionItem() {
+  const num = _solActionItems.length + 1;
+  _solActionItems.push({ num, texto: '', done: false });
+  solRenderActionItems();
+  // Focus en el nuevo input
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.sol-ai-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function solRenderActionItems() {
+  const el = document.getElementById('sol-action-items-list');
+  if (!el) return;
+  if (_solActionItems.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--mono)">Sin action items.</div>';
+    return;
+  }
+  el.innerHTML = _solActionItems.map((ai, idx) => `
+    <div class="action-item-row">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);width:20px;flex-shrink:0">${ai.num}.</span>
+      <input class="form-input sol-ai-input" style="flex:1;padding:5px 8px;font-size:12px" 
+        value="${ai.texto}" placeholder="Descripción del action item..."
+        oninput="_solActionItems[${idx}].texto=this.value">
+      <input type="checkbox" ${ai.done?'checked':''} style="accent-color:var(--green);width:14px;height:14px;flex-shrink:0"
+        onchange="_solActionItems[${idx}].done=this.checked" title="Completado">
+      <button class="btn btn-ghost btn-sm" style="color:var(--red);padding:3px 7px" 
+        aria-label="Eliminar action item" onclick="_solActionItems.splice(${idx},1);_solActionItems.forEach((a,i)=>a.num=i+1);solRenderActionItems()">✕</button>
+    </div>`).join('');
+}
+
+function solRenderBitacoraPreview() {
+  const el = document.getElementById('sol-bitacora-preview');
+  if (!el) return;
+  if (_solBitacora.length === 0) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--mono)">Sin entradas aún.</div>';
+    return;
+  }
+  el.innerHTML = [..._solBitacora].reverse().map(b => `
+    <div class="bitacora-entry">
+      <div class="bitacora-ts">📅 ${b.ts} · ${b.autor || 'Sistema'}</div>
+      <div style="font-size:13px;color:var(--text)">${b.texto}</div>
+    </div>`).join('');
+}
+
+function solAbrirBitacora(solicitudId) {
+  _solBitacoraTarget = solicitudId || 'form';
+  const now = new Date();
+  document.getElementById('bitacora-ts-preview').textContent =
+    '📅 ' + now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+  document.getElementById('bitacora-nueva-entrada').value = '';
+  document.getElementById('modal-bitacora').classList.add('open');
+  setTimeout(() => document.getElementById('bitacora-nueva-entrada').focus(), 100);
+}
+
+async function solGuardarEntradaBitacora() {
+  const texto = document.getElementById('bitacora-nueva-entrada').value.trim();
+  if (!texto) return;
+  const now = new Date();
+  const ts = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+  const entrada = { ts, texto, autor: CURRENT_USER?.nombre || 'Sistema' };
+
+  document.getElementById('modal-bitacora').classList.remove('open');
+
+  if (_solBitacoraTarget === 'form') {
+    _solBitacora.push(entrada);
+    solRenderBitacoraPreview();
+  } else {
+    // Agregar a solicitud existente en Supabase
+    const sol = SOL_RECORDS.find(s => s.id === _solBitacoraTarget);
+    if (!sol) return;
+    const newBitacora = [...(sol.bitacora || []), entrada];
+    try {
+      await sbRequest('PATCH', 'solicitudes?id=eq.' + sol.id, { bitacora: newBitacora, updated_at: new Date().toISOString() });
+      sol.bitacora = newBitacora;
+      showToast('✅ Entrada agregada a la bitácora', 'success');
+      solVerDetalle(sol);
+    } catch(e) {
+      showToast('⚠️ Error: ' + e.message, 'error');
+    }
+  }
+}
+
+async function solGuardar() {
+  const tipo = document.getElementById('sol-tipo').value;
+  const fecha = document.getElementById('sol-fecha').value;
+  const descripcion = document.getElementById('sol-descripcion').value.trim();
+  const tqsIds = solGetTQSSeleccionados();
+
+  if (!tipo || !fecha || !descripcion) {
+    showToast('⚠️ Tipo, Fecha y Descripción son obligatorios', 'warning'); return;
+  }
+  if (tqsIds.length === 0) {
+    showToast('⚠️ Selecciona al menos un TQS', 'warning'); return;
+  }
+
+  const now = new Date();
+  const ts = now.toLocaleDateString('es-MX') + ' ' + now.toLocaleTimeString('es-MX', {hour:'2-digit',minute:'2-digit'});
+  const bitacoraInicial = [{ ts, texto: 'Solicitud creada.', autor: CURRENT_USER?.nombre || 'Sistema' }];
+  const bitacora = _solBitacora.length > 0 ? [...bitacoraInicial, ..._solBitacora] : bitacoraInicial;
+
+  const record = {
+    tipo,
+    fecha_inicio: fecha,
+    descripcion,
+    sistema_sap: document.getElementById('sol-sistema').value.trim() || null,
+    responsable: document.getElementById('sol-responsable').value.trim() || null,
+    estatus: document.getElementById('sol-estatus').value,
+    tqs_ids: tqsIds,
+    action_items: _solActionItems,
+    bitacora,
+    owner_id: CURRENT_USER?.id || null,
+    updated_at: now.toISOString()
+  };
+
+  try {
+    if (_solEditingId) {
+      await sbRequest('PATCH', 'solicitudes?id=eq.' + _solEditingId, record);
+      showToast('✅ Solicitud actualizada', 'success');
+    } else {
+      await sbRequest('POST', 'solicitudes', record);
+      showToast('✅ Solicitud creada', 'success');
+    }
+    solLimpiar();
+    await solLoadAll();
+    navigate('solicitudes');
+  } catch(e) {
+    showToast('⚠️ Error guardando: ' + e.message, 'error');
+  }
+}
+
+function solLimpiar() {
+  ['sol-tipo','sol-fecha','sol-sistema','sol-responsable','sol-descripcion'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const estEl = document.getElementById('sol-estatus');
+  if (estEl) estEl.value = 'En espera de autorización';
+  document.querySelectorAll('input[name="sol-tqs-cb"]').forEach(cb => cb.checked = false);
+  _solActionItems = [];
+  _solBitacora = [];
+  _solEditingId = null;
+  solRenderActionItems();
+  solRenderBitacoraPreview();
+}
+
+function solRenderList() {
+  const el = document.getElementById('sol-list-content');
+  const tagEl = document.getElementById('sol-count-tag');
+  if (!el) return;
+
+  const filterTipo = document.getElementById('sol-filter-tipo')?.value || '';
+  const filterEst = document.getElementById('sol-filter-estatus')?.value || '';
+
+  let data = SOL_RECORDS.filter(s => {
+    if (filterTipo && s.tipo !== filterTipo) return false;
+    if (filterEst && s.estatus !== filterEst) return false;
+    return true;
+  });
+
+  if (tagEl) tagEl.textContent = data.length;
+
+  if (data.length === 0) {
+    el.innerHTML = '<div class="empty-state"><span class="icon">📂</span><p>Sin solicitudes. Crea la primera desde "Nueva Solicitud".</p></div>';
+    return;
+  }
+
+  const estatusClass = {
+    'Aprobado': 'sol-est-Aprobado', 'En proceso': 'sol-est-proceso',
+    'En espera de autorización': 'sol-est-espera', 'Cerrado': 'sol-est-Cerrado',
+    'Cancelado': 'sol-est-Cancelado', 'Re-asignado': 'sol-est-reasignado'
+  };
+
+  el.innerHTML = data.map(s => {
+    const color = SOL_TIPO_COLORS[s.tipo] || 'var(--accent)';
+    const fechaStr = s.fecha_inicio ? new Date(s.fecha_inicio + 'T00:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    const aiCount = (s.action_items||[]).length;
+    const bitCount = (s.bitacora||[]).length;
+    const estCls = estatusClass[s.estatus] || 'sol-est-espera';
+    return `<div class="sol-card" style="--sol-color:${color}" onclick="solVerDetalle(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span class="sol-tipo sol-tipo-${s.tipo}">${s.tipo}</span>
+        <span class="sol-estatus ${estCls}">${s.estatus}</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto">📅 ${fechaStr}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:6px;font-weight:500">${s.descripcion?.substring(0,120)||'—'}${(s.descripcion||'').length>120?'…':''}</div>
+      <div style="display:flex;gap:12px;font-family:var(--mono);font-size:10px;color:var(--text3)">
+        ${s.sistema_sap?`<span>🖥 ${s.sistema_sap}</span>`:''}
+        ${s.responsable?`<span>👤 ${s.responsable}</span>`:''}
+        ${aiCount?`<span>📋 ${aiCount} actions</span>`:''}
+        ${bitCount?`<span>🗒 ${bitCount} entradas</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function solVerDetalle(s) {
+  if (typeof s === 'string') s = JSON.parse(s);
+  const modal = document.getElementById('modal-sol-detalle');
+  const body = document.getElementById('modal-sol-body');
+  const title = document.getElementById('modal-sol-title');
+  if (!modal || !body) return;
+
+  modal._solId = s.id;
+  title.innerHTML = `<span class="sol-tipo sol-tipo-${s.tipo}" style="margin-right:8px">${s.tipo}</span> ${s.descripcion?.substring(0,50)||'Solicitud'}`;
+
+  const fechaStr = s.fecha_inicio ? new Date(s.fecha_inicio+'T00:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const aiHtml = (s.action_items||[]).length ? s.action_items.map(ai =>
+    `<div class="action-item-row">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);width:20px">${ai.num}.</span>
+      <span style="flex:1;font-size:12px;${ai.done?'text-decoration:line-through;color:var(--text3)':''}">${ai.texto}</span>
+      <span style="font-size:11px">${ai.done?'✅':''}</span>
+    </div>`).join('') : '<div style="color:var(--text3);font-size:12px">Sin action items</div>';
+
+  const bitHtml = (s.bitacora||[]).length ? [...s.bitacora].reverse().map(b =>
+    `<div class="bitacora-entry">
+      <div class="bitacora-ts">📅 ${b.ts} · ${b.autor||'Sistema'}</div>
+      <div style="font-size:13px;color:var(--text)">${b.texto}</div>
+    </div>`).join('') : '<div style="color:var(--text3);font-size:12px">Sin entradas</div>';
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div><div class="form-label">Fecha Inicio</div><div style="font-size:13px;color:var(--text)">${fechaStr}</div></div>
+      <div><div class="form-label">Sistema SAP</div><div style="font-size:13px;color:var(--text)">${s.sistema_sap||'—'}</div></div>
+      <div><div class="form-label">Responsable</div><div style="font-size:13px;color:var(--text)">${s.responsable||'—'}</div></div>
+      <div><div class="form-label">Estatus</div><div class="sol-estatus ${{'Aprobado':'sol-est-Aprobado','En proceso':'sol-est-proceso','En espera de autorización':'sol-est-espera','Cerrado':'sol-est-Cerrado','Cancelado':'sol-est-Cancelado','Re-asignado':'sol-est-reasignado'}[s.estatus]||'sol-est-espera'}">${s.estatus}</div></div>
+    </div>
+    <div style="margin-bottom:14px"><div class="form-label" style="margin-bottom:6px">Descripción</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.6;background:var(--surface2);padding:10px 12px;border-radius:6px">${s.descripcion||'—'}</div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="form-section-title" style="margin-bottom:8px">📋 Action Items</div>
+      ${aiHtml}
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="form-section-title">🗒️ Bitácora</div>
+        <button class="btn btn-ghost btn-sm" aria-label="Agregar entrada a bitácora" onclick="solAbrirBitacora('${s.id}')">+ Nueva entrada</button>
+      </div>
+      ${bitHtml}
+    </div>`;
+
+  modal.classList.add('open');
+}
+
+function solCerrarModal() {
+  document.getElementById('modal-sol-detalle').classList.remove('open');
+}
+
+function solEditarDesdeModal() {
+  const modal = document.getElementById('modal-sol-detalle');
+  const id = modal._solId;
+  const s = SOL_RECORDS.find(x => x.id === id);
+  if (!s) return;
+  solCerrarModal();
+  navigate('nueva-solicitud');
+  setTimeout(() => {
+    _solEditingId = s.id;
+    _solActionItems = JSON.parse(JSON.stringify(s.action_items || []));
+    _solBitacora = JSON.parse(JSON.stringify(s.bitacora || []));
+    const setV = (id, v) => { const el = document.getElementById(id); if (el) el.value = v||''; };
+    setV('sol-tipo', s.tipo);
+    setV('sol-fecha', s.fecha_inicio);
+    setV('sol-sistema', s.sistema_sap);
+    setV('sol-responsable', s.responsable);
+    setV('sol-descripcion', s.descripcion);
+    setV('sol-estatus', s.estatus);
+    // Marcar TQS
+    document.querySelectorAll('input[name="sol-tqs-cb"]').forEach(cb => {
+      cb.checked = (s.tqs_ids||[]).includes(cb.value);
+    });
+    solRenderActionItems();
+    solRenderBitacoraPreview();
+  }, 150);
+}
+
+document.addEventListener('click', e => {
+  const m = document.getElementById('modal-sol-detalle');
+  if (m && m.classList.contains('open') && e.target === m) solCerrarModal();
+  const mb = document.getElementById('modal-bitacora');
+  if (mb && mb.classList.contains('open') && e.target === mb) mb.classList.remove('open');
+});
 
 function init() {
   // Date
