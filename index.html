@@ -3718,62 +3718,48 @@ async function executeDeleteOldDB() {
 
   const currentYear = new Date().getFullYear();
   const keepYears = [currentYear, currentYear - 1];
+  const minYear = Math.min(...keepYears);
   const allSheets = ['CPROC','SOLMAN','Data Staging','Cloud Connector','Dynatrace','SCM & EWM','FDE & FR'];
 
-  toast('⏳ Depurando registros en Google Sheets...', 'info');
+  toast('⏳ Depurando registros en Supabase...', 'info');
 
   let totalDeleted = 0;
-  let sheetsUpdated = 0;
   let gsError = false;
 
   for (const sheet of allSheets) {
-    // Contar cuántos eliminaremos en esta hoja
-    const data = SB_RECORDS.filter(r => r._sheet === sheet);
-    const toDelete = data.filter(r => {
+    const toDelete = SB_RECORDS.filter(r => {
+      if (r._sheet !== sheet) return false;
       const y = r.fecha ? parseInt(r.fecha.substring(0,4)) : null;
       return y && !keepYears.includes(y);
     });
 
     if (toDelete.length === 0) continue;
 
-    // Si hay conexión con Sheets, eliminar en la BD real
-    if (GS_CONNECTED && GS_URL) {
-      try {
-        const result = await gsRequest('deleteOldRecords', {
-          sheet: sheet,
-          keepYears: keepYears
-        });
-        totalDeleted += result.deleted || toDelete.length;
-        sheetsUpdated++;
-      } catch(e) {
-        gsError = true;
-        totalDeleted += toDelete.length;
-      }
-    } else {
+    try {
+      // Borrar directamente en Supabase por sistema_grupo y fecha
+      await sbRequest('DELETE', `rfcs?sistema_grupo=eq.${encodeURIComponent(sheet)}&fecha=lt.${minYear}-01-01`);
       totalDeleted += toDelete.length;
+    } catch(e) {
+      gsError = true;
     }
 
-    // Actualizar datos locales en memoria
-    if (GS_CONNECTED) {
-      GS_RECORDS = GS_RECORDS.filter(r => {
-        if (r._sheet !== sheet) return true;
-        const y = r.fecha ? parseInt(r.fecha.substring(0,4)) : null;
-        return !y || keepYears.includes(y);
-      });
-    }
+    // Actualizar memoria local
+    SB_RECORDS = SB_RECORDS.filter(r => {
+      if (r._sheet !== sheet) return true;
+      const y = r.fecha ? parseInt(r.fecha.substring(0,4)) : null;
+      return !y || keepYears.includes(y);
+    });
+    GS_RECORDS = SB_RECORDS;
   }
 
-  // Actualizar UI
   renderDashboard();
   if (currentSheet) renderTable();
   updateAlertBadge();
 
-  if (!GS_CONNECTED) {
-    toast(`⚠️ ${totalDeleted} registros eliminados localmente. Conecta a Google Sheets para sincronizar en la BD real.`, 'warning');
-  } else if (gsError) {
-    toast(`⚠️ Depuración parcial (${totalDeleted} registros). Algunos errores en Sheets — recarga recomendada.`, 'warning');
+  if (gsError) {
+    toast(`⚠️ Depuración parcial (${totalDeleted} registros). Algunos errores.`, 'warning');
   } else {
-    toast(`✅ ${totalDeleted} registros eliminados de Google Sheets. BD depurada.`, 'success');
+    toast(`✅ ${totalDeleted} registros eliminados de Supabase. BD depurada.`, 'success');
   }
 }
 
