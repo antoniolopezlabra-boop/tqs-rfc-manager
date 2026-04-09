@@ -1191,6 +1191,130 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
       </div>
     </div>
 
+
+    <!-- NUEVA SOLICITUD -->
+    <div class="page" id="page-nueva-solicitud">
+      <div class="page-header">
+        <h1>📋 Nueva Solicitud <span class="tag">KIT / Incidente / RCA / Actividad</span></h1>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">📌 Información General</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Tipo *</label>
+            <select class="form-select" id="sol-tipo">
+              <option value="">Seleccionar...</option>
+              <option>KIT</option><option>Incidente</option><option>RCA</option><option>Actividad</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha de Inicio *</label>
+            <input class="form-input" id="sol-fecha" type="date">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sistema SAP</label>
+            <input class="form-input" id="sol-sistema" type="text" placeholder="Ej: CPROC, SOLMAN...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Responsable</label>
+            <input class="form-input" id="sol-responsable" type="text" placeholder="Nombre del responsable">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estatus</label>
+            <select class="form-select" id="sol-estatus">
+              <option>En espera de autorización</option>
+              <option>Aprobado</option><option>En proceso</option>
+              <option>Re-asignado</option><option>Cerrado</option><option>Cancelado</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">👥 TQS Asignados *</div>
+        <div class="tqs-multi-select" id="sol-tqs-list">
+          <div style="font-size:12px;color:var(--text3);font-family:var(--mono)">Cargando TQS...</div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">📝 Descripción *</div>
+        <textarea class="form-textarea" id="sol-descripcion" rows="4" placeholder="Descripción detallada de la solicitud..."></textarea>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>📋 Action Items</span>
+          <button class="btn btn-ghost btn-sm" aria-label="Agregar action item" onclick="solAddActionItem()">+ Agregar</button>
+        </div>
+        <div id="sol-action-items-list">
+          <div style="color:var(--text3);font-size:12px;font-family:var(--mono)">Sin action items aún.</div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>🗒️ Bitácora</span>
+          <button class="btn btn-ghost btn-sm" aria-label="Agregar entrada a bitácora" onclick="solAbrirBitacora('form')">+ Nueva entrada</button>
+        </div>
+        <div id="sol-bitacora-preview">
+          <div style="color:var(--text3);font-size:12px;font-family:var(--mono)">Sin entradas aún.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding:8px 0">
+        <button class="btn btn-ghost" aria-label="Limpiar formulario" onclick="solLimpiar()">🗑️ Limpiar</button>
+        <button class="btn btn-primary" aria-label="Guardar solicitud" onclick="solGuardar()">💾 Guardar Solicitud</button>
+      </div>
+    </div>
+
+    <!-- SOLICITUDES LIST -->
+    <div class="page" id="page-solicitudes">
+      <div class="page-header">
+        <h1>📂 Solicitudes <span class="tag" id="sol-count-tag">0</span></h1>
+        <div style="display:flex;gap:8px">
+          <select class="filter-select" id="sol-filter-tipo" onchange="solRenderList()">
+            <option value="">Todos los tipos</option>
+            <option>KIT</option><option>Incidente</option><option>RCA</option><option>Actividad</option>
+          </select>
+          <select class="filter-select" id="sol-filter-estatus" onchange="solRenderList()">
+            <option value="">Todos los estatus</option>
+            <option>Aprobado</option><option>En espera de autorización</option>
+            <option>En proceso</option><option>Re-asignado</option><option>Cerrado</option><option>Cancelado</option>
+          </select>
+        </div>
+      </div>
+      <div id="sol-list-content">
+        <div class="empty-state"><span class="icon">📂</span><p>Cargando solicitudes...</p></div>
+      </div>
+    </div>
+
+    <!-- MODAL DETALLE SOLICITUD -->
+    <div class="sol-modal" id="modal-sol-detalle">
+      <div class="sol-modal-box">
+        <div class="sol-modal-header">
+          <div class="modal-title" id="modal-sol-title">Solicitud</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn btn-ghost btn-sm" aria-label="Editar solicitud" onclick="solEditarDesdeModal()">✏️ Editar</button>
+            <button class="modal-close" aria-label="Cerrar detalle de solicitud" onclick="solCerrarModal()">✕</button>
+          </div>
+        </div>
+        <div class="sol-modal-body" id="modal-sol-body"></div>
+      </div>
+    </div>
+
+    <!-- MODAL BITÁCORA -->
+    <div class="sol-modal" id="modal-bitacora">
+      <div class="sol-modal-box" style="max-width:500px">
+        <div class="sol-modal-header">
+          <div class="modal-title">🗒️ Nueva entrada en Bitácora</div>
+          <button class="modal-close" aria-label="Cerrar bitácora" onclick="document.getElementById('modal-bitacora').classList.remove('open')">✕</button>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text3)" id="bitacora-ts-preview"></div>
+          <textarea class="form-textarea" id="bitacora-nueva-entrada" rows="5" placeholder="Escribe la actualización..."></textarea>
+          <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button class="btn btn-ghost btn-sm" aria-label="Cancelar" onclick="document.getElementById('modal-bitacora').classList.remove('open')">Cancelar</button>
+            <button class="btn btn-primary btn-sm" aria-label="Guardar entrada de bitácora" onclick="solGuardarEntradaBitacora()">💾 Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 </div>
