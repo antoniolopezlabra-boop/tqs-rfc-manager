@@ -1441,6 +1441,7 @@ function _getOrCreatePopup() {
 
 function openStatusEdit(e, r) {
   e.stopPropagation();
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.rol === 'fte') return;
   statusPopupRecord = r;
 
   const popup = _getOrCreatePopup();
@@ -1487,6 +1488,7 @@ function openStatusEdit(e, r) {
 }
 
 function applyQuickStatus(newStatus) {
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.rol === 'fte') return;
   if (!statusPopupRecord) return;
   const r = statusPopupRecord;
   const oldStatus = r.status;
@@ -1582,6 +1584,7 @@ function quickStatusByIdx(idx, newStatus) {
 // DELETE RECORD — Eliminar registro de Sheets y memoria
 // ============================================================
 function deleteRecord(r) {
+  if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER && CURRENT_USER.rol === 'fte') return;
   const ticketLabel = r.ticket || r.descripcion?.slice(0, 30) || '?';
   const confirmed = window.confirm(
     `🗑️ ELIMINAR REGISTRO\n\n` +
@@ -3304,6 +3307,9 @@ function applyRoleRestrictions(rol) {
     document.querySelectorAll('#nav-nuevo, .btn-primary, .status-edit-btn, #gs-reload-btn').forEach(el => {
       if (el) el.style.display = 'none';
     });
+    const _s = document.createElement('style');
+    _s.textContent = '.status-edit-btn{display:none!important;pointer-events:none!important}#nav-nuevo{display:none!important}';
+    document.head.appendChild(_s);
   }
   // Solo admin ve Export DB_OLD y DELETE_DB_OLD
   if (rol !== 'admin') {
