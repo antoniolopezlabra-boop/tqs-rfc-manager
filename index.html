@@ -913,6 +913,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
     <div class="topbar-right">
       <div style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="current-date"></div>
+      <button id="btn-error-log" onclick="showErrorLog()" aria-label="Ver log de errores"
+        style="display:none;background:var(--red-bg);border:1px solid rgba(255,61,90,0.25);
+        color:var(--red);font-family:var(--mono);font-size:10px;padding:5px 10px;
+        border-radius:var(--radius-sm);cursor:pointer;align-items:center;gap:5px">
+        Errores: <span id="error-log-badge">0</span>
+      </button>
       <!-- USER BADGE -->
       <div class="user-badge" id="user-badge" style="display:none" onclick="toggleUserMenu()">
         <div class="user-avatar">AL</div>
@@ -4414,5 +4420,21 @@ init();
   </div>
 </div>
 
+<!-- MODAL ERROR LOG -->
+<div id="modal-error-log" class="modal-overlay">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <div class="modal-title">Log de Errores</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-error-log').classList.remove('open')">x</button>
+    </div>
+    <div id="error-log-content" style="max-height:500px;overflow-y:auto;font-family:var(--mono)">
+      <div style="text-align:center;padding:40px;color:var(--text3)">Cargando...</div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3)" id="error-log-count">0 errores</span>
+      <button class="btn btn-ghost btn-sm" aria-label="Limpiar log de errores" onclick="ERROR_LOG.length=0;showErrorLog();updateErrorBadge()">Limpiar log</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
