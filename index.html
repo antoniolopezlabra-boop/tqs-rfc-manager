@@ -2837,9 +2837,15 @@ function saveRecord() {
     updateAlertBadge();
     renderDashboard();
     if (orig._id) {
-      sbRequest('PATCH', `rfcs?id=eq.${orig._id}`, record)
+      // CRITICO: limpiar campos UI (_local, _sheet, _id, horaInicio, horaFin)
+      // usando recordToSbRow antes de mandar a Supabase
+      const cleanRow = recordToSbRow(record);
+      sbRequest('PATCH', `rfcs?id=eq.${orig._id}`, cleanRow)
         .then(() => showToast('☁️ RFC actualizado en Supabase: ' + ticket, 'success'))
-        .catch(e => showToast('⚠️ Actualizado en UI, error Supabase: ' + e.message, 'warning'));
+        .catch(e => {
+          if (typeof logError === 'function') logError('PATCH RFC', e.message, 'Ticket: ' + ticket);
+          showToast('⚠️ Error Supabase: ' + e.message, 'error');
+        });
     }
     showToast('✅ RFC actualizado: ' + ticket, 'success');
     cancelEdit();
