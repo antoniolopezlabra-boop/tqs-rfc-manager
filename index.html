@@ -913,6 +913,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     <div class="topbar-title" id="topbar-title">📊 Dashboard</div>
     <div class="topbar-right">
       <div style="font-size:12px;color:var(--text3);font-family:var(--mono)" id="current-date"></div>
+      <button id="btn-sync-check" onclick="runSyncCheck()" aria-label="Verificar sincronizacion con Supabase"
+        style="background:var(--surface2);border:1px solid var(--border);
+        color:var(--text2);font-family:var(--mono);font-size:10px;padding:5px 10px;
+        border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:5px;margin-right:6px">
+        Verificar Sync
+      </button>
       <button id="btn-error-log" onclick="showErrorLog()" aria-label="Ver log de errores"
         style="display:none;background:var(--red-bg);border:1px solid rgba(255,61,90,0.25);
         color:var(--red);font-family:var(--mono);font-size:10px;padding:5px 10px;
@@ -2351,7 +2357,7 @@ function buildTableHeader() {
     inner += `</div></div>`;
 
     return `<th class="sortable">${inner}</th>`;
-  }).join('') + '<th style="width:40px"></th>';
+  }).join('') + '<th style="width:40px"></th><th style="width:40px"></th>';
 }
 
 function toggleSort(key, e) {
@@ -2577,7 +2583,7 @@ function renderTable() {
 
   const tbody = document.getElementById('sheet-tbody');
   if (slice.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><span class="icon">🔍</span><p>Sin resultados para los filtros activos</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty-state"><span class="icon">🔍</span><p>Sin resultados para los filtros activos</p></div></td></tr>';
     document.getElementById('pagination').innerHTML = '';
     return;
   }
@@ -2597,6 +2603,7 @@ function renderTable() {
       <td class="mono" style="font-size:12px">${formatHora(r.horaInicio)}</td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaFin)}</td>
       <td><button class="btn btn-ghost btn-sm" aria-label="Ver detalle del RFC" onclick="showDetail(window._tableSlice[${idx}])">👁</button></td>
+      <td><button class="btn btn-ghost btn-sm" aria-label="Eliminar RFC" style="color:var(--red)" onclick="confirmDeleteRFC('${(r.ticket||'').replace(/'/g,"\\'")}','${r._id}')" title="Eliminar RFC permanentemente">🗑️</button></td>
     </tr>`;
   }).join('');
 
@@ -4034,6 +4041,131 @@ document.addEventListener('click', e => {
   if (mb && mb.classList.contains('open') && e.target === mb) mb.classList.remove('open');
 });
 
+
+// ============================================================
+// VERIFICAR SINCRONIZACION UI <-> SUPABASE
+// ============================================================
+async function runSyncCheck() {
+  const btn = document.getElementById('btn-sync-check');
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Verificando...';
+  
+  const report = { total: 0, sincronizados: 0, actualizados: 0, errores: 0, detalles: [] };
+  
+  try {
+    const resp = await fetch(SB_URL + '/rest/v1/rfcs?select=*&owner_id=eq.' + CURRENT_USER.id + '&limit=5000', {
+      headers: sbHeaders()
+    });
+    const dbRecords = await resp.json();
+    const uiRecords = SB_RECORDS;
+    report.total = uiRecords.length;
+    
+    for (const uiRec of uiRecords) {
+      if (!uiRec._id) continue;
+      const dbRec = dbRecords.find(d => d.id === uiRec._id);
+      if (!dbRec) {
+        report.errores++;
+        report.detalles.push({ticket: uiRec.ticket, issue: 'NO EXISTE EN BD'});
+        continue;
+      }
+      const desincronizado = (
+        dbRec.status !== uiRec.status ||
+        dbRec.descripcion !== uiRec.descripcion ||
+        dbRec.observaciones !== uiRec.observaciones ||
+        dbRec.promotor !== uiRec.promotor ||
+        (dbRec.hora_inicio || '') !== (uiRec.horaInicio || '') ||
+        (dbRec.hora_fin || '') !== (uiRec.horaFin || '')
+      );
+      if (desincronizado) {
+        const cleanRow = recordToSbRow(uiRec);
+        const patchResp = await fetch(SB_URL + '/rest/v1/rfcs?id=eq.' + uiRec._id, {
+          method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(cleanRow)
+        });
+        if (patchResp.ok) {
+          report.actualizados++;
+          report.detalles.push({ticket: uiRec.ticket, issue: 'ACTUALIZADO', ui: uiRec.status, db: dbRec.status});
+        } else {
+          report.errores++;
+          const errText = await patchResp.text();
+          report.detalles.push({ticket: uiRec.ticket, issue: 'ERROR: ' + errText.substring(0,80)});
+        }
+      } else {
+        report.sincronizados++;
+      }
+    }
+    
+    // Mostrar reporte en modal
+    showSyncReport(report);
+  } catch(e) {
+    if (typeof logError === 'function') logError('Sync Check', e.message);
+    showToast('Error verificando: ' + e.message, 'error');
+  }
+  
+  btn.disabled = false;
+  btn.innerHTML = originalText;
+}
+
+function showSyncReport(r) {
+  const modal = document.getElementById('modal-sync-report');
+  if (!modal) return;
+  const content = document.getElementById('sync-report-content');
+  
+  const allOK = r.errores === 0 && r.actualizados === 0;
+  const icon = allOK ? 'OK' : 'Revisar';
+  const color = allOK ? 'var(--green)' : 'var(--yellow, #f59e0b)';
+  
+  let html = '<div style="padding:20px;font-family:var(--mono)">';
+  html += '<div style="font-size:14px;font-weight:700;color:' + color + ';margin-bottom:16px">' + icon + '</div>';
+  html += '<table style="width:100%;font-size:12px"><tbody>';
+  html += '<tr><td style="padding:4px;color:var(--text3)">Total de registros:</td><td style="text-align:right;font-weight:600">' + r.total + '</td></tr>';
+  html += '<tr><td style="padding:4px;color:var(--text3)">Sincronizados:</td><td style="text-align:right;color:var(--green);font-weight:600">' + r.sincronizados + '</td></tr>';
+  html += '<tr><td style="padding:4px;color:var(--text3)">Actualizados ahora:</td><td style="text-align:right;color:var(--accent);font-weight:600">' + r.actualizados + '</td></tr>';
+  html += '<tr><td style="padding:4px;color:var(--text3)">Errores:</td><td style="text-align:right;color:var(--red);font-weight:600">' + r.errores + '</td></tr>';
+  html += '</tbody></table>';
+  
+  if (r.detalles.length > 0) {
+    html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:10px;letter-spacing:2px;color:var(--text3);margin-bottom:8px">DETALLE</div>';
+    r.detalles.forEach(function(d) {
+      html += '<div style="padding:6px 8px;border-bottom:1px solid var(--border);font-size:11px"><strong>' + d.ticket + '</strong> - ' + d.issue + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  content.innerHTML = html;
+  modal.classList.add('open');
+}
+
+// ============================================================
+// ELIMINAR RFC
+// ============================================================
+async function confirmDeleteRFC(ticket, id) {
+  const ok = window.confirm('Eliminar RFC ' + ticket + ' permanentemente?\n\nEsta accion no se puede deshacer.\nEl registro sera eliminado de Supabase.');
+  if (!ok) return;
+  
+  try {
+    const resp = await fetch(SB_URL + '/rest/v1/rfcs?id=eq.' + id, {
+      method: 'DELETE', headers: sbHeaders()
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(errText);
+    }
+    
+    // Eliminar de memoria local
+    SB_RECORDS = SB_RECORDS.filter(r => r._id !== id);
+    GS_RECORDS = GS_RECORDS.filter(r => r._id !== id);
+    
+    showToast('RFC ' + ticket + ' eliminado', 'success');
+    applyFilters();
+    updateAlertBadge();
+    renderDashboard();
+  } catch(e) {
+    if (typeof logError === 'function') logError('DELETE RFC', e.message, 'Ticket: ' + ticket);
+    showToast('Error eliminando: ' + e.message, 'error');
+  }
+}
+
 function init() {
   // Date
   document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-MX', {
@@ -4423,6 +4555,17 @@ init();
       <div id="nu-error" class="auth-error"></div>
       <button class="auth-btn" aria-label="Crear nuevo usuario en el sistema" onclick="createNewUser()">💾 Crear Usuario</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL SYNC REPORT -->
+<div id="modal-sync-report" class="modal-overlay">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <div class="modal-title">Reporte de Sincronizacion</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-sync-report').classList.remove('open')">x</button>
+    </div>
+    <div id="sync-report-content" style="max-height:500px;overflow-y:auto"></div>
   </div>
 </div>
 
