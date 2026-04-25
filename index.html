@@ -887,6 +887,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   <div class="nav-item" id="nav-usuarios" onclick="navigate('usuarios')" style="display:none">
     <span class="icon">👥</span><span>Gestión de Usuarios</span>
   </div>
+  <div class="nav-item" id="nav-sistemas" onclick="navigate('sistemas')" style="display:none">
+    <span class="icon">⚙️</span><span>Gestión de Sistemas</span>
+  </div>
 
   <div style="padding:8px 14px;border-top:1px solid var(--border)">
     <button aria-label="Cerrar sesión" onclick="doLogout()" style="
@@ -1020,6 +1023,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
         </div>
       </div>
       <div id="vobo-table-content"></div>
+    </div>
+
+    <!-- SISTEMAS PAGE -->
+    <div class="page" id="page-sistemas">
+      <div class="page-header">
+        <h1>⚙️ Gestión de Sistemas <span class="tag" id="sistemas-count-tag">0</span></h1>
+        <button class="btn btn-primary btn-sm" aria-label="Agregar nuevo sistema" onclick="showNewSistemaModal()">➕ Nuevo Sistema</button>
+      </div>
+      <div id="sistemas-table-content">
+        <div class="empty-state"><span class="icon">⏳</span><p>Cargando sistemas...</p></div>
+      </div>
     </div>
 
     <!-- USUARIOS PAGE -->
@@ -1851,6 +1865,11 @@ function navigate(page, sheetName) {
     document.getElementById('nav-usuarios').classList.add('active');
     document.getElementById('topbar-title').textContent = '👥 Gestión de Usuarios';
     renderUsersPage();
+  } else if (page === 'sistemas') {
+    document.getElementById('page-sistemas').classList.add('active');
+    document.getElementById('nav-sistemas').classList.add('active');
+    document.getElementById('topbar-title').textContent = '⚙️ Gestión de Sistemas';
+    renderSistemasPage();
   } else if (page === 'vobo') {
     document.getElementById('page-vobo').classList.add('active');
     document.getElementById('topbar-title').textContent = '⏳ En Espera de VOBO';
@@ -3695,11 +3714,21 @@ async function viewUserSystems(id, nombre) {
 }
 
 function applyAdminUI(rol) {
+  // admin ve gestion completa, tqs_leader ve solo gestion de sistemas
+  const adminSection = document.getElementById('nav-admin-section');
+  const adminNavUsers = document.getElementById('nav-usuarios');
+  const adminNavSistemas = document.getElementById('nav-sistemas');
+  
   if (rol === 'admin') {
-    const adminSection = document.getElementById('nav-admin-section');
-    const adminNav     = document.getElementById('nav-usuarios');
     if (adminSection) adminSection.style.display = '';
-    if (adminNav)     adminNav.style.display = '';
+    if (adminNavUsers) adminNavUsers.style.display = '';
+    if (adminNavSistemas) adminNavSistemas.style.display = '';
+  } else if (rol === 'tqs_leader') {
+    if (adminSection) {
+      adminSection.style.display = '';
+      adminSection.textContent = 'Mi Cuenta';
+    }
+    if (adminNavSistemas) adminNavSistemas.style.display = '';
   }
 }
 
@@ -4166,6 +4195,273 @@ async function confirmDeleteRFC(ticket, id) {
   }
 }
 
+
+// ============================================================
+// GESTION DE SISTEMAS
+// ============================================================
+let _sistemasData = [];
+
+async function loadSistemasData() {
+  try {
+    // Si es admin, cargar todos los TQS Leaders. Si es TQS, solo el suyo
+    let usersQuery = 'tqs_users?activo=eq.true&select=id,nombre,email,sistemas,rol';
+    if (CURRENT_USER.rol !== 'admin') {
+      usersQuery += '&id=eq.' + CURRENT_USER.id;
+    } else {
+      usersQuery += '&rol=in.(admin,tqs_leader)';
+    }
+    const users = await sbRequest('GET', usersQuery);
+    
+    // Para cada sistema de cada usuario, contar RFCs
+    const flat = [];
+    for (const u of users) {
+      const sistemas = u.sistemas || [];
+      for (const s of sistemas) {
+        // Contar RFCs de este sistema y este owner
+        const count = SB_RECORDS.filter(r => 
+          r._sheet === s && r.owner_id === u.id
+        ).length;
+        flat.push({
+          sistema: s,
+          owner_id: u.id,
+          owner_nombre: u.nombre,
+          owner_email: u.email,
+          rfcs: count
+        });
+      }
+    }
+    _sistemasData = flat;
+    return flat;
+  } catch(e) {
+    if (typeof logError === 'function') logError('Load Sistemas', e.message);
+    return [];
+  }
+}
+
+async function renderSistemasPage() {
+  const el = document.getElementById('sistemas-table-content');
+  el.innerHTML = '<div class="empty-state"><span class="icon">⏳</span><p>Cargando...</p></div>';
+  
+  const data = await loadSistemasData();
+  document.getElementById('sistemas-count-tag').textContent = data.length;
+  
+  if (data.length === 0) {
+    el.innerHTML = '<div class="empty-state"><span class="icon">⚙️</span><p>No hay sistemas configurados</p></div>';
+    return;
+  }
+  
+  const isAdmin = CURRENT_USER.rol === 'admin';
+  
+  const rows = data.map(function(d, idx) {
+    return '<tr>' +
+      '<td style="font-weight:600;color:var(--text)">' + d.sistema + '</td>' +
+      '<td>' + (isAdmin ? d.owner_nombre : '<span style="color:var(--text3)">Tú</span>') + '</td>' +
+      '<td><span class="badge badge-blue">' + d.rfcs + ' RFCs</span></td>' +
+      '<td>' +
+        '<div style="display:flex;gap:4px">' +
+          '<button class="btn btn-ghost btn-sm" aria-label="Transferir sistema" onclick="showTransferSistema(' + idx + ')" title="Transferir a otro TQS">🔀</button>' +
+          '<button class="btn btn-ghost btn-sm" aria-label="Eliminar sistema" style="color:var(--red)" onclick="confirmDeleteSistema(' + idx + ')" title="Eliminar sistema">🗑️</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  
+  el.innerHTML = '<div class="table-wrap"><div class="table-scroll"><table>' +
+    '<thead><tr><th>Sistema</th><th>Dueño</th><th>RFCs</th><th>Acciones</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div></div>';
+}
+
+async function showNewSistemaModal() {
+  const isAdmin = CURRENT_USER.rol === 'admin';
+  document.getElementById('ns-nombre').value = '';
+  document.getElementById('ns-error').style.display = 'none';
+  
+  // Si es admin, mostrar selector de owner
+  const ownerField = document.getElementById('ns-owner-field');
+  if (isAdmin) {
+    ownerField.style.display = '';
+    const sel = document.getElementById('ns-owner');
+    const tqsList = await sbRequest('GET', 'tqs_users?rol=in.(admin,tqs_leader)&activo=eq.true&select=id,nombre&order=nombre.asc');
+    sel.innerHTML = tqsList.map(function(u) {
+      return '<option value="' + u.id + '"' + (u.id === CURRENT_USER.id ? ' selected' : '') + '>' + u.nombre + '</option>';
+    }).join('');
+  } else {
+    ownerField.style.display = 'none';
+  }
+  
+  document.getElementById('modal-new-sistema').classList.add('open');
+  setTimeout(function() { document.getElementById('ns-nombre').focus(); }, 100);
+}
+
+async function createNewSistema() {
+  const nombre = document.getElementById('ns-nombre').value.trim().toUpperCase();
+  const errEl = document.getElementById('ns-error');
+  errEl.style.display = 'none';
+  
+  if (!nombre) {
+    errEl.textContent = 'Escribe el nombre del sistema';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  const isAdmin = CURRENT_USER.rol === 'admin';
+  const ownerId = isAdmin ? document.getElementById('ns-owner').value : CURRENT_USER.id;
+  
+  try {
+    // Obtener sistemas actuales del owner
+    const userData = await sbRequest('GET', 'tqs_users?id=eq.' + ownerId + '&select=sistemas');
+    const currentSistemas = (userData[0] && userData[0].sistemas) || [];
+    
+    if (currentSistemas.includes(nombre)) {
+      errEl.textContent = 'Este sistema ya existe para ese usuario';
+      errEl.style.display = 'block';
+      return;
+    }
+    
+    // Agregar y guardar
+    const newSistemas = [...currentSistemas, nombre];
+    await sbRequest('PATCH', 'tqs_users?id=eq.' + ownerId, {
+      sistemas: newSistemas,
+      updated_at: new Date().toISOString()
+    });
+    
+    // Si es para el usuario actual, actualizar sesión
+    if (ownerId === CURRENT_USER.id) {
+      CURRENT_USER.sistemas = newSistemas;
+      saveSession(CURRENT_USER);
+      buildUserSidebar(CURRENT_USER);
+    }
+    
+    document.getElementById('modal-new-sistema').classList.remove('open');
+    showToast('✅ Sistema creado: ' + nombre, 'success');
+    renderSistemasPage();
+  } catch(e) {
+    if (typeof logError === 'function') logError('Create Sistema', e.message);
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+async function confirmDeleteSistema(idx) {
+  const d = _sistemasData[idx];
+  if (!d) return;
+  
+  // Si tiene RFCs, advertir
+  if (d.rfcs > 0) {
+    const move = window.confirm('El sistema "' + d.sistema + '" tiene ' + d.rfcs + ' RFCs asociados.\n\nNo se puede eliminar mientras tenga RFCs.\n\n¿Quieres TRANSFERIR el sistema a otro TQS Leader en su lugar?');
+    if (move) {
+      showTransferSistema(idx);
+    }
+    return;
+  }
+  
+  const ok = window.confirm('¿Eliminar el sistema "' + d.sistema + '"?\n\nNo tiene RFCs asociados, se puede eliminar sin riesgo.');
+  if (!ok) return;
+  
+  try {
+    // Quitar el sistema del array del owner
+    const userData = await sbRequest('GET', 'tqs_users?id=eq.' + d.owner_id + '&select=sistemas');
+    const currentSistemas = (userData[0] && userData[0].sistemas) || [];
+    const newSistemas = currentSistemas.filter(function(s) { return s !== d.sistema; });
+    
+    await sbRequest('PATCH', 'tqs_users?id=eq.' + d.owner_id, {
+      sistemas: newSistemas,
+      updated_at: new Date().toISOString()
+    });
+    
+    if (d.owner_id === CURRENT_USER.id) {
+      CURRENT_USER.sistemas = newSistemas;
+      saveSession(CURRENT_USER);
+      buildUserSidebar(CURRENT_USER);
+    }
+    
+    showToast('✅ Sistema eliminado: ' + d.sistema, 'success');
+    renderSistemasPage();
+  } catch(e) {
+    if (typeof logError === 'function') logError('Delete Sistema', e.message);
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function showTransferSistema(idx) {
+  const d = _sistemasData[idx];
+  if (!d) return;
+  
+  window._transferData = d;
+  document.getElementById('ts-sistema-name').textContent = d.sistema;
+  document.getElementById('ts-owner-name').textContent = d.owner_nombre;
+  document.getElementById('ts-rfcs-count').textContent = d.rfcs + ' RFCs';
+  document.getElementById('ts-error').style.display = 'none';
+  
+  // Cargar lista de TQS Leaders disponibles (excluyendo el actual)
+  const tqsList = await sbRequest('GET', 'tqs_users?rol=in.(admin,tqs_leader)&activo=eq.true&select=id,nombre&order=nombre.asc');
+  const sel = document.getElementById('ts-new-owner');
+  sel.innerHTML = '<option value="">Selecciona un TQS Leader...</option>' + 
+    tqsList.filter(function(u) { return u.id !== d.owner_id; }).map(function(u) {
+      return '<option value="' + u.id + '">' + u.nombre + '</option>';
+    }).join('');
+  
+  document.getElementById('modal-transfer-sistema').classList.add('open');
+}
+
+async function confirmTransferSistema() {
+  const d = window._transferData;
+  const newOwnerId = document.getElementById('ts-new-owner').value;
+  const errEl = document.getElementById('ts-error');
+  errEl.style.display = 'none';
+  
+  if (!newOwnerId) {
+    errEl.textContent = 'Selecciona un TQS Leader';
+    errEl.style.display = 'block';
+    return;
+  }
+  
+  try {
+    // 1. Quitar sistema del owner actual
+    const oldUserData = await sbRequest('GET', 'tqs_users?id=eq.' + d.owner_id + '&select=sistemas,nombre');
+    const oldSistemas = (oldUserData[0] && oldUserData[0].sistemas) || [];
+    await sbRequest('PATCH', 'tqs_users?id=eq.' + d.owner_id, {
+      sistemas: oldSistemas.filter(function(s) { return s !== d.sistema; }),
+      updated_at: new Date().toISOString()
+    });
+    
+    // 2. Agregar sistema al nuevo owner
+    const newUserData = await sbRequest('GET', 'tqs_users?id=eq.' + newOwnerId + '&select=sistemas,nombre');
+    const newSistemas = (newUserData[0] && newUserData[0].sistemas) || [];
+    if (!newSistemas.includes(d.sistema)) {
+      newSistemas.push(d.sistema);
+      await sbRequest('PATCH', 'tqs_users?id=eq.' + newOwnerId, {
+        sistemas: newSistemas,
+        updated_at: new Date().toISOString()
+      });
+    }
+    
+    // 3. Transferir todos los RFCs de ese sistema al nuevo owner
+    if (d.rfcs > 0) {
+      await sbRequest('PATCH', 'rfcs?owner_id=eq.' + d.owner_id + '&sistema_grupo=eq.' + encodeURIComponent(d.sistema), {
+        owner_id: newOwnerId
+      });
+    }
+    
+    // 4. Actualizar sesión si afecta al usuario actual
+    if (d.owner_id === CURRENT_USER.id) {
+      CURRENT_USER.sistemas = oldSistemas.filter(function(s) { return s !== d.sistema; });
+      saveSession(CURRENT_USER);
+      buildUserSidebar(CURRENT_USER);
+      // Recargar RFCs ya que perdió ese sistema
+      loadFromSheets();
+    }
+    
+    document.getElementById('modal-transfer-sistema').classList.remove('open');
+    showToast('✅ Sistema "' + d.sistema + '" transferido a ' + newUserData[0].nombre, 'success');
+    renderSistemasPage();
+  } catch(e) {
+    if (typeof logError === 'function') logError('Transfer Sistema', e.message);
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.style.display = 'block';
+  }
+}
+
 function init() {
   // Date
   document.getElementById('current-date').textContent = new Date().toLocaleDateString('es-MX', {
@@ -4554,6 +4850,54 @@ init();
       </div>
       <div id="nu-error" class="auth-error"></div>
       <button class="auth-btn" aria-label="Crear nuevo usuario en el sistema" onclick="createNewUser()">💾 Crear Usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO SISTEMA -->
+<div id="modal-new-sistema" class="modal-overlay">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <div class="modal-title">➕ Nuevo Sistema</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-new-sistema').classList.remove('open')">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="auth-field">
+        <div class="auth-label">Nombre del sistema</div>
+        <input class="auth-input" id="ns-nombre" type="text" placeholder="Ej: CPROC, S4HANA, BTP..." onkeydown="if(event.key===\'Enter\') createNewSistema()">
+      </div>
+      <div class="auth-field" id="ns-owner-field" style="display:none">
+        <div class="auth-label">Asignar a TQS Leader</div>
+        <select class="auth-input" id="ns-owner"></select>
+      </div>
+      <div id="ns-error" class="auth-error"></div>
+      <button class="auth-btn" aria-label="Crear sistema" onclick="createNewSistema()">💾 Crear Sistema</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TRANSFERIR SISTEMA -->
+<div id="modal-transfer-sistema" class="modal-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">🔀 Transferir Sistema</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="document.getElementById('modal-transfer-sistema').classList.remove('open')">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div style="background:var(--surface2);padding:12px;border-radius:var(--radius-sm);font-family:var(--mono);font-size:12px;color:var(--text2)">
+        Sistema: <strong id="ts-sistema-name" style="color:var(--accent)"></strong><br>
+        Dueño actual: <strong id="ts-owner-name"></strong><br>
+        RFCs asociados: <strong id="ts-rfcs-count"></strong>
+      </div>
+      <div class="auth-field">
+        <div class="auth-label">Nuevo dueño (TQS Leader)</div>
+        <select class="auth-input" id="ts-new-owner"></select>
+      </div>
+      <div style="background:var(--red-bg);border:1px solid rgba(255,61,90,0.25);padding:10px;border-radius:var(--radius-sm);font-family:var(--mono);font-size:11px;color:var(--red)">
+        ⚠️ Al transferir, todos los RFCs cambiarán de dueño. El TQS actual perderá acceso al sistema y a sus RFCs.
+      </div>
+      <div id="ts-error" class="auth-error"></div>
+      <button class="auth-btn" aria-label="Confirmar transferencia" onclick="confirmTransferSistema()">🔀 Transferir Sistema</button>
     </div>
   </div>
 </div>
