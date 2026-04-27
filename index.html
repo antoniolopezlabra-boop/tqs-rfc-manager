@@ -3611,10 +3611,14 @@ async function renderUsersPage() {
       <td style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.primer_login?'Pendiente':'Completado'}</td>
       <td>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" aria-label="Ver sistemas del usuario" onclick="viewUserSystems('${u.id}','${u.nombre}')" title="Ver sistemas">📋</button>
+          <button class="btn btn-ghost btn-sm" aria-label="Ver sistemas del usuario" onclick="viewUserSystems('','${u.nombre}')" title="Ver sistemas">📋</button>
           ${u.activo 
             ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Desactivar usuario" onclick="toggleUserActivo('${u.id}',false,'${u.nombre}')" title="Desactivar">🚫</button>`
             : `<button class="btn btn-ghost btn-sm" style="color:var(--green)" aria-label="Activar usuario" onclick="toggleUserActivo('${u.id}',true,'${u.nombre}')" title="Activar">✅</button>`
+          }
+          ${CURRENT_USER && CURRENT_USER.rol === 'admin' && u.id !== CURRENT_USER.id
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Eliminar usuario" onclick="deleteUser('${u.id}','${(u.nombre||'').replace(/'/g,'\\\'')}')" title="Eliminar usuario y toda su información">🗑️</button>`
+            : ''
           }
         </div>
       </td>
@@ -3687,6 +3691,64 @@ async function toggleUserActivo(id, activo, nombre) {
     renderUsersPage();
   } catch(e) {
     showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// Eliminar usuario con cascade: borra sus RFCs, sus solicitudes y el usuario.
+// Solo admin. No se puede eliminar a sí mismo.
+async function deleteUser(id, nombre) {
+  if (!CURRENT_USER || CURRENT_USER.rol !== 'admin') {
+    showToast('Solo el administrador puede eliminar usuarios', 'error');
+    return;
+  }
+  if (id === CURRENT_USER.id) {
+    showToast('No puedes eliminar tu propia cuenta', 'error');
+    return;
+  }
+
+  // Doble confirmación: primero un confirm genérico, luego pedir el nombre del usuario
+  if (!confirm('⚠️ ELIMINAR USUARIO\n\nEstás por eliminar a "' + nombre + '" y TODA su información:\n\n• Todos sus RFCs\n• Todas sus Solicitudes\n• Su cuenta\n\nEsta acción NO se puede deshacer. ¿Continuar?')) return;
+
+  const tipeo = prompt('Para confirmar, escribe el nombre EXACTO del usuario a eliminar:\n\n' + nombre);
+  if (tipeo === null) return;
+  if (tipeo.trim() !== nombre.trim()) {
+    showToast('El nombre no coincide. Eliminación cancelada.', 'warning');
+    return;
+  }
+
+  try {
+    showToast('Eliminando información del usuario...', 'info');
+
+    // 1) Contar lo que se va a borrar (informativo)
+    let rfcsCount = 0, solCount = 0;
+    try {
+      const rfcsList = await sbRequest('GET', 'rfcs?select=id&owner_id=eq.' + id + '&limit=10000');
+      rfcsCount = (rfcsList || []).length;
+    } catch(_) {}
+    try {
+      const solList = await sbRequest('GET', 'solicitudes?select=id&owner_id=eq.' + id + '&limit=10000');
+      solCount = (solList || []).length;
+    } catch(_) {}
+
+    // 2) Borrar RFCs del usuario
+    if (rfcsCount > 0) {
+      await sbRequest('DELETE', 'rfcs?owner_id=eq.' + id);
+    }
+
+    // 3) Borrar solicitudes del usuario
+    if (solCount > 0) {
+      try { await sbRequest('DELETE', 'solicitudes?owner_id=eq.' + id); }
+      catch(e) { console.warn('No se pudieron borrar solicitudes:', e.message); }
+    }
+
+    // 4) Borrar el usuario
+    await sbRequest('DELETE', 'tqs_users?id=eq.' + id);
+
+    showToast('✅ Usuario "' + nombre + '" eliminado (' + rfcsCount + ' RFCs, ' + solCount + ' solicitudes)', 'success');
+    renderUsersPage();
+  } catch(e) {
+    showToast('Error eliminando usuario: ' + e.message, 'error');
+    if (typeof logError === 'function') logError('Delete User', e.message);
   }
 }
 
@@ -4211,22 +4273,36 @@ async function loadSistemasData() {
       usersQuery += '&rol=in.(admin,tqs_leader)';
     }
     const users = await sbRequest('GET', usersQuery);
-    
-    // Para cada sistema de cada usuario, contar RFCs
+
+    // Traer TODOS los pares (owner_id, sistema_grupo) de la tabla rfcs
+    // para poder contar los RFCs de cualquier owner, no solo el logueado.
+    // Si es admin, sin filtro; si es tqs_leader, solo los suyos.
+    let rfcsQuery = 'rfcs?select=owner_id,sistema_grupo&limit=10000';
+    if (CURRENT_USER.rol !== 'admin') {
+      rfcsQuery += '&owner_id=eq.' + CURRENT_USER.id;
+    }
+    const rfcsRows = await sbRequest('GET', rfcsQuery) || [];
+
+    // Indexar conteos por clave "owner_id::sistema"
+    const counts = {};
+    for (const r of rfcsRows) {
+      if (!r.owner_id || !r.sistema_grupo) continue;
+      const key = r.owner_id + '::' + r.sistema_grupo;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+
+    // Construir filas con el conteo real
     const flat = [];
     for (const u of users) {
       const sistemas = u.sistemas || [];
       for (const s of sistemas) {
-        // Contar RFCs de este sistema y este owner
-        const count = SB_RECORDS.filter(r => 
-          r._sheet === s && r.owner_id === u.id
-        ).length;
+        const key = u.id + '::' + s;
         flat.push({
           sistema: s,
           owner_id: u.id,
           owner_nombre: u.nombre,
           owner_email: u.email,
-          rfcs: count
+          rfcs: counts[key] || 0
         });
       }
     }
