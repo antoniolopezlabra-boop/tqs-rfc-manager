@@ -28,6 +28,33 @@
   --glow-a:0 0 20px rgba(0,207,255,0.18); --glow-g:0 0 16px rgba(0,245,160,0.15);
   --glow-r:0 0 16px rgba(255,61,90,0.18); --glow-y:0 0 14px rgba(255,204,0,0.14);
 }
+
+/* === PALETA CLARA === */
+body.theme-light {
+  --bg:#f1f4f9; --bg2:#ffffff; --surface:#ffffff; --surface2:#f4f7fb; --surface3:#e9eef5;
+  --border:#dde4ee; --border2:#c4d0e0; --border-hi:#7aa3d4;
+  --accent:#0090cc; --accent2:#005599; --accent-glow:rgba(0,144,204,0.06); --accent-glo2:rgba(0,144,204,0.14);
+  --green:#00a86b; --green-bg:rgba(0,168,107,0.08);
+  --yellow:#c79100; --yellow-bg:rgba(199,145,0,0.08);
+  --red:#d63347; --red-bg:rgba(214,51,71,0.08);
+  --orange:#d96400; --orange-bg:rgba(217,100,0,0.08);
+  --purple:#7c3aed;
+  --text:#0a1a2e; --text2:#3d5a7a; --text3:#7a9bbe; --text4:#c4d0e0;
+  --glow-a:0 0 12px rgba(0,144,204,0.12); --glow-g:0 0 10px rgba(0,168,107,0.12);
+  --glow-r:0 0 10px rgba(214,51,71,0.12); --glow-y:0 0 8px rgba(199,145,0,0.10);
+}
+body.theme-light::-webkit-scrollbar-track{background:#e9eef5}
+body.theme-light::-webkit-scrollbar-thumb{background:#a8b8cc}
+
+/* === BOTON TOGGLE DE TEMA === */
+.theme-toggle {
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  cursor:pointer;font-size:14px;line-height:1;transition:all 0.2s;user-select:none;
+}
+.theme-toggle:hover { background:var(--accent-glow);border-color:var(--accent);color:var(--accent) }
+.theme-toggle:active { transform:scale(0.95) }
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
@@ -943,6 +970,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
         <span id="gs-dot" class="gs-dot"></span>
         <span id="gs-label">Sin conectar</span>
       </div>
+      <button class="theme-toggle" id="theme-toggle-btn" aria-label="Cambiar tema claro/oscuro" title="Cambiar tema" onclick="toggleTheme()">🌙</button>
       <button class="btn btn-ghost btn-sm" id="gs-config-btn" aria-label="Configuración de Supabase" title="Configurar Google Sheets">⚙️ Supabase</button>
       <button class="btn btn-ghost btn-sm" id="gs-reload-btn" aria-label="Recargar datos de Supabase" title="Recargar datos de Sheets" style="display:none">🔄</button>
       <button class="btn btn-ghost btn-sm" aria-label="Exportar registros históricos" onclick="exportOldDB()" title="Exportar registros de años anteriores (CSV ejecutivo)" style="border-color:var(--yellow);color:var(--yellow);font-size:11px">📤 Export DB_OLD</button>
@@ -1144,6 +1172,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
               <option>Reprogramar</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-title">👥 TQS Asignados <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:6px">Selecciona uno o más TQS Leaders para colaborar en este RFC</span></div>
+        <div id="f-tqs-checkboxes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;padding:4px 2px">
+          <div style="color:var(--text3);font-size:12px;font-family:var(--mono)">⏳ Cargando TQS disponibles…</div>
         </div>
       </div>
 
@@ -1363,6 +1398,32 @@ let SB_CONNECTED = false;
 let SB_RECORDS   = [];
 let SB_LOADING   = false;
 
+// === THEME TOGGLE ===
+const TQS_THEME_KEY = 'tqs_theme';
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.body.classList.add('theme-light');
+  } else {
+    document.body.classList.remove('theme-light');
+  }
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+function toggleTheme() {
+  const isLight = document.body.classList.contains('theme-light');
+  const next = isLight ? 'dark' : 'light';
+  localStorage.setItem(TQS_THEME_KEY, next);
+  applyTheme(next);
+}
+function initTheme() {
+  let theme = localStorage.getItem(TQS_THEME_KEY);
+  if (!theme) {
+    theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
+  applyTheme(theme);
+}
+document.addEventListener('DOMContentLoaded', initTheme);
+
 // ── Alias para compatibilidad con código existente ──
 let GS_CONNECTED = false;
 let GS_RECORDS   = [];
@@ -1400,7 +1461,9 @@ function sbRowToRecord(r) {
     horaInicio:   r.hora_inicio   || '',
     horaFin:      r.hora_fin      || '',
     _sheet:       r.sistema_grupo || r.sistema_name || '',
-    _id:          r.id
+    _id:          r.id,
+    tqs_ids:      Array.isArray(r.tqs_ids) ? r.tqs_ids : [],
+    owner_id:     r.owner_id || null
   };
 }
 
@@ -1421,6 +1484,7 @@ function recordToSbRow(r) {
     hora_inicio:    r.horaInicio        || null,
     hora_fin:       r.horaFin           || null,
     owner_id:       r.owner_id || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER ? CURRENT_USER.id : null),
+    tqs_ids:        Array.isArray(r.tqs_ids) ? r.tqs_ids : [],
   };
 }
 
@@ -1462,10 +1526,17 @@ async function loadFromSheets() {
         showToast('⚠️ Sin TQS asignados. Contacta a tu administrador.', 'warning');
         return;
       }
+    } else if (CURRENT_USER && CURRENT_USER.rol === 'admin') {
+      // admin: ve todo (sin filtro)
+      filterParam = 'rfcs?select=*&order=fecha.desc&limit=5000';
     } else {
-      // admin o tqs_leader: sus propios RFCs
+      // tqs_leader: sus propios RFCs + los RFCs donde está asignado como TQS colaborador
       const ownerId = CURRENT_USER ? CURRENT_USER.id : null;
-      filterParam = ownerId ? 'rfcs?select=*&owner_id=eq.' + ownerId + '&order=fecha.desc&limit=2000' : 'rfcs?select=*&order=fecha.desc&limit=2000';
+      if (ownerId) {
+        filterParam = 'rfcs?select=*&or=(owner_id.eq.' + ownerId + ',tqs_ids.cs.{' + ownerId + '})&order=fecha.desc&limit=2000';
+      } else {
+        filterParam = 'rfcs?select=*&order=fecha.desc&limit=2000';
+      }
     }
     const data = await sbRequest('GET', filterParam);
     SB_RECORDS = (data || []).map(sbRowToRecord);
@@ -1895,6 +1966,10 @@ function navigate(page, sheetName) {
       const sistemas = CURRENT_USER.sistemas || [];
       grupoSel.innerHTML = '<option value="">Seleccionar grupo...</option>' +
         sistemas.map(s => '<option value="' + s + '">' + s + '</option>').join('');
+    }
+    // Cargar checkboxes de TQS disponibles
+    if (!window._editingRecord) {
+      loadTQSCheckboxes([]);
     }
   } else if (page === 'sheet') {
     currentSheet = sheetName;
@@ -2751,6 +2826,9 @@ function editFromDetail() {
       setVal('f-hfin-m', mm);
     }
 
+    // Cargar checkboxes con los TQS previamente asignados
+    loadTQSCheckboxes(Array.isArray(r.tqs_ids) ? r.tqs_ids : []);
+
     // Indicar que es edición (para el botón de guardar)
     window._editingRecord = r;
 
@@ -2799,6 +2877,39 @@ document.getElementById('modal-alerts').addEventListener('click', e => {
 // ============================================================
 // FORM - SAVE
 // ============================================================
+// === Cargar checkboxes de TQS disponibles para asignar a un RFC ===
+async function loadTQSCheckboxes(selectedIds) {
+  const cont = document.getElementById('f-tqs-checkboxes');
+  if (!cont) return;
+  selectedIds = selectedIds || [];
+  try {
+    const users = await sbRequest('GET', 'tqs_users?activo=eq.true&rol=in.(admin,tqs_leader)&select=id,nombre,email&order=nombre.asc');
+    const filtered = (users || []).filter(u => !CURRENT_USER || u.id !== CURRENT_USER.id);
+    if (filtered.length === 0) {
+      cont.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--mono)">No hay otros TQS disponibles para asignar.</div>';
+      return;
+    }
+    cont.innerHTML = filtered.map(u => {
+      const checked = selectedIds.includes(u.id) ? 'checked' : '';
+      const initials = (u.nombre||'U').split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+      return '<label class="tqs-check-item" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        '<input type="checkbox" class="f-tqs-cb" value="' + u.id + '" ' + checked + ' style="accent-color:var(--accent);cursor:pointer">' +
+        '<div class="user-avatar" style="width:24px;height:24px;font-size:9px;flex-shrink:0;background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700">' + initials + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (u.nombre||'—') + '</div>' +
+          '<div style="font-size:10px;color:var(--text3);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + u.email + '</div>' +
+        '</div>' +
+      '</label>';
+    }).join('');
+  } catch(e) {
+    cont.innerHTML = '<div style="color:var(--red);font-size:12px">Error cargando TQS: ' + e.message + '</div>';
+  }
+}
+
+function getSelectedTqsIds() {
+  return Array.from(document.querySelectorAll('#f-tqs-checkboxes .f-tqs-cb:checked')).map(cb => cb.value);
+}
+
 function saveRecord() {
   const tipo   = document.getElementById('f-tipo').value;
   const ticket = document.getElementById('f-ticket').value.trim();
@@ -2841,6 +2952,7 @@ function saveRecord() {
     status: document.getElementById('f-status').value,
     horaInicio: (() => { const h = document.getElementById('f-hinicio-h').value; const m = document.getElementById('f-hinicio-m').value; return (h && m) ? h + ':' + m : ''; })(),
     horaFin: (() => { const h = document.getElementById('f-hfin-h').value; const m = document.getElementById('f-hfin-m').value; return (h && m) ? h + ':' + m : ''; })(),
+    tqs_ids: getSelectedTqsIds(),
     _sheet: grupo,
     _local: true,
     _id: window._editingRecord?._id || Date.now(),
@@ -2899,6 +3011,7 @@ function clearForm() {
   });
   document.getElementById('f-descripcion').value = '';
   document.getElementById('f-observaciones').value = '';
+  document.querySelectorAll('#f-tqs-checkboxes .f-tqs-cb').forEach(cb => cb.checked = false);
 }
 
 // ============================================================
