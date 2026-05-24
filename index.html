@@ -136,6 +136,45 @@ body{
 .topbar-title{font-family:var(--display);font-size:13px;font-weight:700;color:var(--text);letter-spacing:1.5px;text-transform:uppercase}
 .topbar-right{display:flex;align-items:center;gap:7px}
 
+/* === BUSQUEDA GLOBAL === */
+.global-search-wrap { position:relative; display:flex; align-items:center; }
+.global-search-input {
+  width:240px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:7px 12px 7px 30px; color:var(--text);
+  font-family:var(--mono); font-size:11px; outline:none; transition:all 0.15s;
+}
+.global-search-input::placeholder { color:var(--text3); }
+.global-search-input:focus { border-color:var(--accent); width:320px; background:var(--surface); box-shadow:var(--glow-a); }
+.global-search-icon {
+  position:absolute; left:9px; top:50%; transform:translateY(-50%);
+  font-size:12px; color:var(--text3); pointer-events:none;
+}
+.global-search-kbd {
+  position:absolute; right:7px; top:50%; transform:translateY(-50%);
+  font-family:var(--mono); font-size:9px; color:var(--text3);
+  background:var(--surface); border:1px solid var(--border); border-radius:3px;
+  padding:1px 5px; pointer-events:none;
+}
+.global-search-results {
+  position:absolute; top:calc(100% + 4px); right:0; width:420px; max-height:480px;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
+  box-shadow:0 8px 24px rgba(0,0,0,0.4); overflow-y:auto; z-index:1000; display:none;
+}
+.global-search-results.open { display:block; }
+.gs-result-item {
+  padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer;
+  display:flex; align-items:center; gap:10px; transition:background 0.1s;
+}
+.gs-result-item:last-child { border-bottom:none; }
+.gs-result-item:hover, .gs-result-item.active { background:var(--accent-glow); }
+.gs-result-ticket { font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:700; min-width:90px; }
+.gs-result-info { flex:1; min-width:0; }
+.gs-result-line1 { font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gs-result-line2 { font-size:10px; color:var(--text3); font-family:var(--mono); margin-top:2px; }
+.gs-result-empty { padding:24px 12px; text-align:center; color:var(--text3); font-size:12px; font-family:var(--mono); }
+.gs-result-header { padding:8px 12px; font-size:10px; color:var(--text3); font-family:var(--mono); background:var(--surface2); border-bottom:1px solid var(--border); text-transform:uppercase; letter-spacing:1px; }
+
+
 /* GS STATUS */
 .gs-status{
   display:inline-flex;align-items:center;gap:6px;padding:5px 10px;
@@ -994,6 +1033,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
       <div class="alert-bell" onclick="showAlertModal()" title="Ver alertas">
         🔔<div class="alert-dot" id="alert-dot" style="display:none"></div>
       </div>
+      <div class="global-search-wrap">
+        <span class="global-search-icon">🔍</span>
+        <input type="text" class="global-search-input" id="global-search-input"
+          placeholder="Buscar RFC en todos los sistemas..."
+          oninput="onGlobalSearchInput()"
+          onfocus="onGlobalSearchFocus()"
+          onblur="setTimeout(closeGlobalSearchResults, 200)">
+        <span class="global-search-kbd">⌘K</span>
+        <div class="global-search-results" id="global-search-results"></div>
+      </div>
       <button class="btn btn-primary btn-sm" aria-label="Crear nuevo RFC" onclick="navigate('nuevo')">➕ Nuevo RFC</button>
     </div>
   </div>
@@ -1142,7 +1191,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Hora Fin</label>
+            <label class="form-label">Hora Fin <span style="font-size:9px;color:var(--text3);font-weight:400;margin-left:4px">sin plan de retorno</span></label>
             <div style="display:flex;gap:6px;align-items:center">
               <select class="form-select" id="f-hfin-h" style="flex:1">
                 <option value="">HH</option>
@@ -1155,6 +1204,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
               </select>
               <span style="color:var(--text2);font-weight:700">:</span>
               <select class="form-select" id="f-hfin-m" style="flex:1">
+                <option value="">MM</option>
+                <option>00</option><option>15</option><option>30</option><option>45</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:var(--orange)">Hora Fin con Plan de Retorno <span style="font-size:9px;color:var(--text3);font-weight:400;margin-left:4px">solo si hubo rollback</span></label>
+            <div style="display:flex;gap:6px;align-items:center" title="Llenar solo si el cambio no fue exitoso y tuviste que ejecutar plan de retorno (rollback)">
+              <select class="form-select" id="f-hfin-ret-h" style="flex:1">
+                <option value="">HH</option>
+                <option>00</option><option>01</option><option>02</option><option>03</option>
+                <option>04</option><option>05</option><option>06</option><option>07</option>
+                <option>08</option><option>09</option><option>10</option><option>11</option>
+                <option>12</option><option>13</option><option>14</option><option>15</option>
+                <option>16</option><option>17</option><option>18</option><option>19</option>
+                <option>20</option><option>21</option><option>22</option><option>23</option>
+              </select>
+              <span style="color:var(--text2);font-weight:700">:</span>
+              <select class="form-select" id="f-hfin-ret-m" style="flex:1">
                 <option value="">MM</option>
                 <option>00</option><option>15</option><option>30</option><option>45</option>
               </select>
@@ -1458,8 +1526,9 @@ function sbRowToRecord(r) {
     descripcion:  r.descripcion   || '',
     observaciones:r.observaciones || '',
     status:       r.status        || '',
-    horaInicio:   r.hora_inicio   || '',
-    horaFin:      r.hora_fin      || '',
+    horaInicio:   r.hora_inicio        || '',
+    horaFin:      r.hora_fin           || '',
+    horaFinRetorno: r.hora_fin_retorno || '',
     _sheet:       r.sistema_grupo || r.sistema_name || '',
     _id:          r.id,
     tqs_ids:      Array.isArray(r.tqs_ids) ? r.tqs_ids : [],
@@ -1481,8 +1550,9 @@ function recordToSbRow(r) {
     descripcion:    r.descripcion       || '',
     observaciones:  r.observaciones     || '',
     status:         r.status            || '',
-    hora_inicio:    r.horaInicio        || null,
-    hora_fin:       r.horaFin           || null,
+    hora_inicio:      r.horaInicio        || null,
+    hora_fin:         r.horaFin           || null,
+    hora_fin_retorno: r.horaFinRetorno    || null,
     owner_id:       r.owner_id || (typeof CURRENT_USER !== 'undefined' && CURRENT_USER ? CURRENT_USER.id : null),
     tqs_ids:        Array.isArray(r.tqs_ids) ? r.tqs_ids : [],
   };
@@ -1659,6 +1729,92 @@ function getAll() {
   return SB_RECORDS.length > 0 ? [...SB_RECORDS] : [];
 }
 function getSheet(name) { return getAll().filter(r => r._sheet === name); }
+
+// === BUSQUEDA GLOBAL ============================================
+function onGlobalSearchInput() {
+  const input = document.getElementById('global-search-input');
+  const query = (input.value || '').toLowerCase().trim();
+  const box = document.getElementById('global-search-results');
+  if (query.length < 2) {
+    box.classList.remove('open');
+    return;
+  }
+  const all = getAll();
+  if (all.length === 0) {
+    box.innerHTML = '<div class="gs-result-empty">No hay RFCs cargados todavía.</div>';
+    box.classList.add('open');
+    return;
+  }
+  // Filtrado en múltiples campos
+  const matches = all.filter(r => {
+    return ((r.ticket||'').toLowerCase().includes(query)
+      || (r.sistema||'').toLowerCase().includes(query)
+      || (r._sheet||'').toLowerCase().includes(query)
+      || (r.promotor||'').toLowerCase().includes(query)
+      || (r.descripcion||'').toLowerCase().includes(query)
+      || (r.observaciones||'').toLowerCase().includes(query)
+      || (r.status||'').toLowerCase().includes(query));
+  }).slice(0, 50); // máximo 50 resultados
+  if (matches.length === 0) {
+    box.innerHTML = '<div class="gs-result-empty">Sin resultados para "' + query.replace(/</g,'&lt;') + '"</div>';
+    box.classList.add('open');
+    return;
+  }
+  const header = '<div class="gs-result-header">' + matches.length + (matches.length === 50 ? '+' : '') + ' resultado' + (matches.length===1?'':'s') + '</div>';
+  const rows = matches.map((r, i) => {
+    const ticket = (r.ticket || '—').replace(/</g,'&lt;');
+    const sis = (r._sheet || r.sistema || '—').replace(/</g,'&lt;');
+    const promotor = (r.promotor || '—').replace(/</g,'&lt;');
+    const fecha = r.fecha ? formatDate(r.fecha) : '—';
+    const status = (r.status || 'Sin status').replace(/</g,'&lt;');
+    const idx = SB_RECORDS.indexOf(r);
+    return '<div class="gs-result-item" data-idx="' + idx + '" onclick="openGlobalSearchResult(' + idx + ')">' +
+      '<div class="gs-result-ticket">' + ticket + '</div>' +
+      '<div class="gs-result-info">' +
+        '<div class="gs-result-line1">' + sis + ' · ' + status + '</div>' +
+        '<div class="gs-result-line2">' + fecha + ' · ' + promotor + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  box.innerHTML = header + rows;
+  box.classList.add('open');
+}
+
+function onGlobalSearchFocus() {
+  const input = document.getElementById('global-search-input');
+  if ((input.value || '').trim().length >= 2) {
+    onGlobalSearchInput();
+  }
+}
+
+function closeGlobalSearchResults() {
+  const box = document.getElementById('global-search-results');
+  if (box) box.classList.remove('open');
+}
+
+function openGlobalSearchResult(idx) {
+  const r = SB_RECORDS[idx];
+  if (!r) return;
+  closeGlobalSearchResults();
+  document.getElementById('global-search-input').value = '';
+  if (typeof showDetail === 'function') showDetail(r);
+}
+
+// Atajo Cmd/Ctrl+K para enfocar
+document.addEventListener('keydown', function(e) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    const inp = document.getElementById('global-search-input');
+    if (inp) { inp.focus(); inp.select(); }
+  }
+  if (e.key === 'Escape') {
+    closeGlobalSearchResults();
+    const inp = document.getElementById('global-search-input');
+    if (inp && document.activeElement === inp) inp.blur();
+  }
+});
+// =================================================================
+
 
 
 // ============================================================
@@ -2404,6 +2560,7 @@ const COLUMNS = [
   { key: 'status',     label: 'Status',      filterable: true,  sortable: true  },
   { key: 'horaInicio', label: 'H.Inicio',    filterable: false, sortable: true  },
   { key: 'horaFin',    label: 'H.Fin',       filterable: false, sortable: true  },
+  { key: 'horaFinRetorno', label: 'H.Fin Retorno', filterable: false, sortable: true  },
 ];
 
 // Per-column active filters: { colKey: Set of selected values }
@@ -2696,6 +2853,7 @@ function renderTable() {
       <td><button class="status-edit-btn badge ${getStatusClass(r.status)}" onclick="openStatusEdit(event, window._tableSlice[${idx}])" title="Click para cambiar status">${getStatusLabel(r.status)} ✏️</button></td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaInicio)}</td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaFin)}</td>
+      <td class="mono" style="font-size:12px;color:${r.horaFinRetorno ? 'var(--orange)' : 'var(--text3)'}" title="${r.horaFinRetorno ? 'Hora de fin tras ejecutar plan de retorno' : 'No se ejecutó plan de retorno'}">${r.horaFinRetorno ? formatHora(r.horaFinRetorno) : '—'}</td>
       <td><button class="btn btn-ghost btn-sm" aria-label="Ver detalle del RFC" onclick="showDetail(window._tableSlice[${idx}])">👁</button></td>
       <td><button class="btn btn-ghost btn-sm" aria-label="Eliminar RFC" style="color:var(--red)" onclick="confirmDeleteRFC('${(r.ticket||'').replace(/'/g,"\\'")}','${r._id}')" title="Eliminar RFC permanentemente">🗑️</button></td>
     </tr>`;
@@ -2749,7 +2907,8 @@ function showDetail(r) {
     ['Promotor',       r.promotor],
     ['Fecha',          formatDate(r.fecha)],
     ['Hora Inicio',    formatHora(r.horaInicio)],
-    ['Hora Fin',       formatHora(r.horaFin)],
+    ['Hora Fin (sin retorno)', formatHora(r.horaFin)],
+    ['Hora Fin con Plan de Retorno', r.horaFinRetorno ? '<span style="color:var(--orange);font-weight:600">' + formatHora(r.horaFinRetorno) + '</span>' : '<span style="color:var(--text3)">— No aplicó retorno</span>'],
     ['Status',         r.status ? `<span class="badge ${getStatusClass(r.status)}">${r.status}</span>` : '—'],
     ['Descripción',    r.descripcion],
     ['Observaciones',  r.observaciones],
@@ -2824,6 +2983,11 @@ function editFromDetail() {
       const [hh, mm] = r.horaFin.split(':');
       setVal('f-hfin-h', hh);
       setVal('f-hfin-m', mm);
+    }
+    if (r.horaFinRetorno && r.horaFinRetorno.includes(':')) {
+      const [hh, mm] = r.horaFinRetorno.split(':');
+      setVal('f-hfin-ret-h', hh);
+      setVal('f-hfin-ret-m', mm);
     }
 
     // Cargar checkboxes con los TQS previamente asignados
@@ -2952,6 +3116,7 @@ function saveRecord() {
     status: document.getElementById('f-status').value,
     horaInicio: (() => { const h = document.getElementById('f-hinicio-h').value; const m = document.getElementById('f-hinicio-m').value; return (h && m) ? h + ':' + m : ''; })(),
     horaFin: (() => { const h = document.getElementById('f-hfin-h').value; const m = document.getElementById('f-hfin-m').value; return (h && m) ? h + ':' + m : ''; })(),
+    horaFinRetorno: (() => { const h = document.getElementById('f-hfin-ret-h').value; const m = document.getElementById('f-hfin-ret-m').value; return (h && m) ? h + ':' + m : ''; })(),
     tqs_ids: getSelectedTqsIds(),
     _sheet: grupo,
     _local: true,
@@ -3005,7 +3170,7 @@ function saveRecord() {
 
 function clearForm() {
   ['f-tipo','f-ambiente','f-ticket','f-fecha','f-grupo','f-sid','f-promotor','f-status',
-   'f-hinicio-h','f-hinicio-m','f-hfin-h','f-hfin-m'].forEach(id => {
+   'f-hinicio-h','f-hinicio-m','f-hfin-h','f-hfin-m','f-hfin-ret-h','f-hfin-ret-m'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3023,7 +3188,7 @@ function exportVOBOcsv() {
     const sl = (r.status||'').toLowerCase();
     return sl.includes('espera') || sl.includes('vobo');
   });
-  const keys = ['_sheet','tipo','ticket','fecha','sistema','promotor','descripcion','status','observaciones','horaInicio','horaFin'];
+  const keys = ['_sheet','tipo','ticket','fecha','sistema','promotor','descripcion','status','observaciones','horaInicio','horaFin','horaFinRetorno'];
   const csv = [keys.join(','), ...records.map(r => keys.map(k => `"${(r[k]||'').toString().replace(/"/g,'""')}"`).join(','))].join('\n');
   const a = document.createElement('a'); a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = 'RFCs_En_Espera_VOBO_' + new Date().toISOString().slice(0,10) + '.csv';
@@ -3038,7 +3203,7 @@ function exportCSVSheet() {
 }
 function doExport(data, filename) {
   const headers = ['Tipo','Ambiente','Ticket','Fecha','Sistema','Promotor','Descripcion','Observaciones','Status','HoraInicio','HoraFin','Hoja'];
-  const keys = ['tipo','ambiente','ticket','fecha','sistema','promotor','descripcion','observaciones','status','horaInicio','horaFin','_sheet'];
+  const keys = ['tipo','ambiente','ticket','fecha','sistema','promotor','descripcion','observaciones','status','horaInicio','horaFin','horaFinRetorno','_sheet'];
   const csv = [headers.join(','),
     ...data.map(r => keys.map(k => '"'+(r[k]||'').toString().replace(/"/g,'""')+'"').join(','))
   ].join('\n');
@@ -4279,7 +4444,8 @@ async function runSyncCheck() {
         dbRec.observaciones !== uiRec.observaciones ||
         dbRec.promotor !== uiRec.promotor ||
         (dbRec.hora_inicio || '') !== (uiRec.horaInicio || '') ||
-        (dbRec.hora_fin || '') !== (uiRec.horaFin || '')
+        (dbRec.hora_fin || '') !== (uiRec.horaFin || '') ||
+        (dbRec.hora_fin_retorno || '') !== (uiRec.horaFinRetorno || '')
       );
       if (desincronizado) {
         const cleanRow = recordToSbRow(uiRec);
@@ -4734,27 +4900,27 @@ function exportOldDB() {
   });
 
   // Construir CSV completo
-  const headers = ['Año','Sistema','Tipo','Ambiente','Ticket','Fecha','Hora Inicio','Hora Fin','Sistema/SID','Promotor','Descripción','Observaciones','Status'];
+  const headers = ['Año','Sistema','Tipo','Ambiente','Ticket','Fecha','Hora Inicio','Hora Fin','Hora Fin Retorno','Sistema/SID','Promotor','Descripción','Observaciones','Status'];
   const rows = [headers.join(',')];
 
   // Resumen ejecutivo al inicio
-  rows.push('RESUMEN EJECUTIVO DB_OLD,,,,,,,,,,,,');
-  rows.push(`Exportado el:,${new Date().toLocaleDateString('es-MX')},,,,,,,,,,, `);
-  rows.push(`Registros totales exportados:,${oldRecords.length},,,,,,,,,,, `);
-  rows.push(',,,,,,,,,,,,');
+  rows.push('RESUMEN EJECUTIVO DB_OLD,,,,,,,,,,,,,');
+  rows.push(`Exportado el:,${new Date().toLocaleDateString('es-MX')},,,,,,,,,,,, `);
+  rows.push(`Registros totales exportados:,${oldRecords.length},,,,,,,,,,,, `);
+  rows.push(',,,,,,,,,,,,,');
   Object.keys(totalByYear).sort().forEach(y => {
-    rows.push(`Año ${y}:,${totalByYear[y]} registros,,,,,,,,,,, `);
+    rows.push(`Año ${y}:,${totalByYear[y]} registros,,,,,,,,,,,, `);
   });
-  rows.push(',,,,,,,,,,,,');
-  rows.push('DETALLE COMPLETO,,,,,,,,,,,,');
-  rows.push(',,,,,,,,,,,,');
+  rows.push(',,,,,,,,,,,,,');
+  rows.push('DETALLE COMPLETO,,,,,,,,,,,,,');
+  rows.push(',,,,,,,,,,,,,');
 
   // Registros por año
   Object.keys(byYear).sort().forEach(y => {
-    rows.push(`=== AÑO ${y} === (${totalByYear[y]} registros),,,,,,,,,,,,`);
+    rows.push(`=== AÑO ${y} === (${totalByYear[y]} registros),,,,,,,,,,,,,`);
     Object.keys(byYear[y]).forEach(sheet => {
       const recs = byYear[y][sheet];
-      rows.push(`--- ${sheet} (${recs.length} registros),,,,,,,,,,,,`);
+      rows.push(`--- ${sheet} (${recs.length} registros),,,,,,,,,,,,,`);
       recs.forEach(r => {
         const escape = v => `"${(v||'').toString().replace(/"/g,'""')}"`;
         rows.push([
@@ -4766,6 +4932,7 @@ function exportOldDB() {
           escape(r.fecha),
           escape(r.horaInicio),
           escape(r.horaFin),
+          escape(r.horaFinRetorno),
           escape(r.sistema),
           escape(r.promotor),
           escape(r.descripcion),
@@ -4774,7 +4941,7 @@ function exportOldDB() {
         ].join(','));
       });
     });
-    rows.push(',,,,,,,,,,,,');
+    rows.push(',,,,,,,,,,,,,');
   });
 
   // Estadísticas por status
