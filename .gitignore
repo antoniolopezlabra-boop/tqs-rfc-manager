@@ -1,0 +1,7 @@
+# Local tooling — never publish (public repo)
+tqs-db.sh
+graphify-out/
+.env
+.env.*
+*.local
+.DS_Store
