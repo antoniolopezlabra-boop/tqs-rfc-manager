@@ -1,6 +1,7 @@
 # Local tooling — never publish (public repo)
 tqs-db.sh
 graphify-out/
+backups/
 .env
 .env.*
 *.local

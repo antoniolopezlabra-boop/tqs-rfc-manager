@@ -5,6 +5,9 @@
   <meta name="description" content="ATLAS · SAP Operations Suite — Control y trazabilidad de RFCs, solicitudes y operación SAP. EAS Consulting × DXC Technology. Portal interno.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#103268">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://zhfmhaqwmkooxxufnncp.supabase.co; object-src 'none'; base-uri 'self';">
+  <!-- frame-ancestors/X-Frame-Options no se pueden fijar vía <meta> (el navegador los ignora ahí);
+       requieren cabecera HTTP real, que GitHub Pages no permite configurar. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ATLAS · SAP Operations Suite | EAS Consulting</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1337,6 +1340,7 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
 </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 
 
@@ -1354,6 +1358,34 @@ const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsIn
 let SB_CONNECTED = false;
 let SB_RECORDS   = [];
 let SB_LOADING   = false;
+
+// ── Cliente Supabase Auth (JWT real por usuario, no anon key compartida) ──
+const sb = supabase.createClient(SB_URL, SB_ANON);
+let SB_ACCESS_TOKEN = null;
+sb.auth.onAuthStateChange((_event, session) => {
+  SB_ACCESS_TOKEN = session ? session.access_token : null;
+});
+
+// ── Escape HTML para evitar XSS al interpolar datos de usuario/registro en innerHTML ──
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+// JSON embebido dentro de un atributo onclick="..."/onclick='...': hay que
+// HTML-entity-escapar TODO el texto (incluidas ambas comillas), no solo una,
+// o un dato con la comilla "equivocada" rompe el atributo y ejecuta JS.
+function jsonForAttr(obj) {
+  return escapeHtml(JSON.stringify(obj));
+}
+// String embebido como argumento de función dentro de onclick="fn('...')":
+// primero escape de sintaxis JS (comillas simples / backslash), luego
+// escape de entidades HTML para el atributo — el navegador decodifica las
+// entidades ANTES de ejecutar el JS, así que ambas capas son necesarias.
+function jsAttrString(v) {
+  const jsEscaped = String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return escapeHtml(jsEscaped);
+}
 
 // === THEME TOGGLE ===
 const TQS_THEME_KEY = 'tqs_theme';
@@ -1390,11 +1422,11 @@ let _autoSyncTimer  = null;
 let _lastSyncTime   = null;
 let _syncCountdown  = null;
 
-// ── Headers Supabase ──
+// ── Headers Supabase (JWT del usuario autenticado — RLS decide qué puede leer/escribir) ──
 function sbHeaders() {
   return {
     'apikey':        SB_ANON,
-    'Authorization': 'Bearer ' + SB_ANON,
+    'Authorization': 'Bearer ' + (SB_ACCESS_TOKEN || SB_ANON),
     'Content-Type':  'application/json',
     'Prefer':        'return=representation'
   };
@@ -1642,17 +1674,17 @@ function onGlobalSearchInput() {
       || (r.status||'').toLowerCase().includes(query));
   }).slice(0, 50); // máximo 50 resultados
   if (matches.length === 0) {
-    box.innerHTML = '<div class="gs-result-empty">Sin resultados para "' + query.replace(/</g,'&lt;') + '"</div>';
+    box.innerHTML = '<div class="gs-result-empty">Sin resultados para "' + escapeHtml(query) + '"</div>';
     box.classList.add('open');
     return;
   }
   const header = '<div class="gs-result-header">' + matches.length + (matches.length === 50 ? '+' : '') + ' resultado' + (matches.length===1?'':'s') + '</div>';
   const rows = matches.map((r, i) => {
-    const ticket = (r.ticket || '—').replace(/</g,'&lt;');
-    const sis = (r._sheet || r.sistema || '—').replace(/</g,'&lt;');
-    const promotor = (r.promotor || '—').replace(/</g,'&lt;');
+    const ticket = escapeHtml(r.ticket || '—');
+    const sis = escapeHtml(r._sheet || r.sistema || '—');
+    const promotor = escapeHtml(r.promotor || '—');
     const fecha = r.fecha ? formatDate(r.fecha) : '—';
-    const status = (r.status || 'Sin status').replace(/</g,'&lt;');
+    const status = escapeHtml(r.status || 'Sin status');
     const idx = SB_RECORDS.indexOf(r);
     return '<div class="gs-result-item" data-idx="' + idx + '" onclick="openGlobalSearchResult(' + idx + ')">' +
       '<div class="gs-result-ticket">' + ticket + '</div>' +
@@ -2155,12 +2187,12 @@ function daysLabel(days) {
 }
 
 function buildAlertItem(a) {
-  const sheet = (a._sheet || '').replace(/'/g, "\\'");
-  return `<div class="alert-item" onclick="navigate('sheet','${sheet}')" title="Ver en ${a._sheet || ''}" style="cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background=''">
+  const sheet = jsAttrString(a._sheet || '');
+  return `<div class="alert-item" onclick="navigate('sheet','${sheet}')" title="Ver en ${escapeHtml(a._sheet || '')}" style="cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background=''">
     <div class="alert-dot-big ${alertClass(a._days)}"></div>
     <div class="alert-info">
-      <div class="alert-rfc">${a.ticket || '—'} · <span style="color:var(--text2);font-family:var(--font)">${a.sistema || '—'}</span> <span style="font-size:10px;color:var(--text3);margin-left:4px">↗ ${a._sheet || ''}</span></div>
-      <div class="alert-desc">${a.descripcion || '—'}</div>
+      <div class="alert-rfc">${escapeHtml(a.ticket || '—')} · <span style="color:var(--text2);font-family:var(--font)">${escapeHtml(a.sistema || '—')}</span> <span style="font-size:10px;color:var(--text3);margin-left:4px">↗ ${escapeHtml(a._sheet || '')}</span></div>
+      <div class="alert-desc">${escapeHtml(a.descripcion || '—')}</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
       <div class="alert-days ${daysClass(a._days)}">${daysLabel(a._days)}</div>
@@ -2286,13 +2318,13 @@ function renderDashboard() {
     ugGrid.innerHTML = upcoming.map((r,i) => {
       const days = daysUntil(r.fecha);
       const color = days <= 1 ? 'var(--red)' : days <= 2 ? 'var(--orange)' : days <= 5 ? 'var(--yellow)' : colors[i % colors.length];
-      return `<div class="upcoming-card" style="--uc-color:${color}" onclick="showDetail(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+      return `<div class="upcoming-card" style="--uc-color:${color}" onclick="showDetail(${jsonForAttr(r)})">
         <div class="uc-header">
-          <span class="uc-ticket">${r.ticket || '—'}</span>
-          <span class="badge ${getStatusClass(r.status)}">${getStatusLabel(r.status)}</span>
+          <span class="uc-ticket">${escapeHtml(r.ticket || '—')}</span>
+          <span class="badge ${getStatusClass(r.status)}">${escapeHtml(getStatusLabel(r.status))}</span>
         </div>
-        <div class="uc-sistema">${r.sistema || '—'}</div>
-        <div class="uc-desc">${r.descripcion || '—'}</div>
+        <div class="uc-sistema">${escapeHtml(r.sistema || '—')}</div>
+        <div class="uc-desc">${escapeHtml(r.descripcion || '—')}</div>
         <div class="uc-footer">
           <span class="uc-date">${formatDate(r.fecha)} · <b style="color:${color}">${daysLabel(days)}</b></span>
           <span class="uc-hours">${formatHora(r.horaInicio)} – ${formatHora(r.horaFin)}</span>
@@ -2313,7 +2345,7 @@ function renderDashboard() {
     const other = rows.length - fin - pend;
     const maxVal = rows.length;
     return `<div class="stat-card">
-      <div class="stat-card-name">${sheet}</div>
+      <div class="stat-card-name">${escapeHtml(sheet)}</div>
       <div class="stat-bar-row">
         <div class="stat-bar-label" style="color:var(--green)">Éxito</div>
         <div class="stat-bar-outer"><div class="stat-bar-inner" style="width:${fin/maxVal*100}%;background:var(--green)"></div></div>
@@ -2357,20 +2389,20 @@ function renderVoboPage() {
   voboRecords.forEach((r, i) => { window._voboRecordsMap[i] = r; });
 
   const rows = voboRecords.map((r, i) => {
-    const rowJson = JSON.stringify(r).replace(/"/g, '&quot;');
+    const rowJson = jsonForAttr(r);
     const daysLeft = daysUntil(r.fecha);
     const urgency = daysLeft !== null && daysLeft <= 1 ? 'border-left:3px solid var(--red)' :
                     daysLeft !== null && daysLeft <= 3 ? 'border-left:3px solid var(--orange)' : '';
-    const sheetSafe = (r._sheet||'').replace(/'/g, "\\'");
-    return `<tr style="${urgency};cursor:pointer" onclick="navigate('sheet','${sheetSafe}')" title="Ir a ${r._sheet||''} para gestionar este RFC" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
-      <td><span class="badge badge-gray">${r.tipo||'—'}</span></td>
-      <td class="mono" style="color:var(--accent2);font-weight:600">${r.ticket||'—'}</td>
+    const sheetSafe = jsAttrString(r._sheet||'');
+    return `<tr style="${urgency};cursor:pointer" onclick="navigate('sheet','${sheetSafe}')" title="Ir a ${escapeHtml(r._sheet||'')} para gestionar este RFC" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background=''">
+      <td><span class="badge badge-gray">${escapeHtml(r.tipo||'—')}</span></td>
+      <td class="mono" style="color:var(--accent2);font-weight:600">${escapeHtml(r.ticket||'—')}</td>
       <td style="white-space:nowrap;font-size:12px">${formatDate(r.fecha)}</td>
-      <td style="font-size:11px;color:var(--text3)">${r._sheet||'—'}</td>
-      <td style="font-weight:600">${r.sistema||'—'}</td>
-      <td style="color:var(--text2)">${r.promotor||'—'}</td>
-      <td class="desc">${r.descripcion||'—'}</td>
-      <td style="font-size:11px;color:var(--text3)">${r.observaciones||'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${escapeHtml(r._sheet||'—')}</td>
+      <td style="font-weight:600">${escapeHtml(r.sistema||'—')}</td>
+      <td style="color:var(--text2)">${escapeHtml(r.promotor||'—')}</td>
+      <td class="desc">${escapeHtml(r.descripcion||'—')}</td>
+      <td style="font-size:11px;color:var(--text3)">${escapeHtml(r.observaciones||'—')}</td>
       <td>${daysLeft !== null ? `<span style="font-weight:700;color:${daysLeft<=1?'var(--red)':daysLeft<=3?'var(--orange)':'var(--yellow)'}">${daysLeft===0?'¡HOY!':daysLeft+' días'}</span>` : '—'}</td>
       <td>
         <div style="display:flex;gap:4px;align-items:center">
@@ -2567,15 +2599,15 @@ function openColDropdown(colKey, e) {
 
 function renderDropdownList(vals, query) {
   const allChecked = vals.length > 0 && vals.every(v => dropdownChecked.has(v));
-  let html = `<div class="col-dropdown-item" onclick="toggleSelectAll(${JSON.stringify(vals)})">
+  let html = `<div class="col-dropdown-item" onclick="toggleSelectAll(${jsonForAttr(vals)})">
     <input type="checkbox" ${allChecked ? 'checked' : ''} id="dd-all" onclick="event.stopPropagation()"> 
     <span style="font-weight:600;color:var(--text)">(Seleccionar todo)</span>
   </div>`;
   html += vals.map(v => {
     const checked = dropdownChecked.has(v);
-    const display = v || '(vacío)';
+    const display = escapeHtml(v || '(vacío)');
     const highlighted = query ? display.replace(new RegExp(query, 'gi'), m => `<mark style="background:var(--accent-glow);color:var(--accent2)">${m}</mark>`) : display;
-    return `<div class="col-dropdown-item" onclick="toggleDropdownItem('${v.replace(/'/g,"\'")}')">
+    return `<div class="col-dropdown-item" onclick="toggleDropdownItem('${jsAttrString(v)}')">
       <input type="checkbox" ${checked ? 'checked' : ''} onclick="event.stopPropagation()">
       <span>${highlighted}</span>
     </div>`;
@@ -2731,18 +2763,18 @@ function renderTable() {
 
   tbody.innerHTML = slice.map((r, idx) => {
     return `<tr>
-      <td><span class="badge badge-gray">${r.tipo||'—'}</span></td>
-      <td class="mono">${r.ticket||'—'}</td>
+      <td><span class="badge badge-gray">${escapeHtml(r.tipo||'—')}</span></td>
+      <td class="mono">${escapeHtml(r.ticket||'—')}</td>
       <td style="white-space:nowrap;font-size:12px;color:var(--text3)">${formatDate(r.fecha)}</td>
-      <td style="font-weight:600;color:var(--text)">${r.sistema||'—'}</td>
-      <td style="color:var(--text2)">${r.promotor||'—'}</td>
-      <td class="desc">${r.descripcion||'—'}</td>
-      <td><button class="status-edit-btn badge ${getStatusClass(r.status)}" onclick="openStatusEdit(event, window._tableSlice[${idx}])" title="Click para cambiar status">${getStatusLabel(r.status)} </button></td>
+      <td style="font-weight:600;color:var(--text)">${escapeHtml(r.sistema||'—')}</td>
+      <td style="color:var(--text2)">${escapeHtml(r.promotor||'—')}</td>
+      <td class="desc">${escapeHtml(r.descripcion||'—')}</td>
+      <td><button class="status-edit-btn badge ${getStatusClass(r.status)}" onclick="openStatusEdit(event, window._tableSlice[${idx}])" title="Click para cambiar status">${escapeHtml(getStatusLabel(r.status))} </button></td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaInicio)}</td>
       <td class="mono" style="font-size:12px">${formatHora(r.horaFin)}</td>
       <td class="mono" style="font-size:12px;color:${r.horaFinRetorno ? 'var(--orange)' : 'var(--text3)'}" title="${r.horaFinRetorno ? 'Hora de fin tras ejecutar plan de retorno' : 'No se ejecutó plan de retorno'}">${r.horaFinRetorno ? formatHora(r.horaFinRetorno) : '—'}</td>
       <td><button class="btn btn-ghost btn-sm" aria-label="Ver detalle del RFC" onclick="showDetail(window._tableSlice[${idx}])">Detalle</button></td>
-      <td><button class="btn btn-ghost btn-sm" aria-label="Eliminar RFC" style="color:var(--red)" onclick="confirmDeleteRFC('${(r.ticket||'').replace(/'/g,"\\'")}','${r._id}')" title="Eliminar RFC permanentemente">Eliminar</button></td>
+      <td><button class="btn btn-ghost btn-sm" aria-label="Eliminar RFC" style="color:var(--red)" onclick="confirmDeleteRFC('${jsAttrString(r.ticket||'')}','${r._id}')" title="Eliminar RFC permanentemente">Eliminar</button></td>
     </tr>`;
   }).join('');
 
@@ -2786,29 +2818,29 @@ function showDetail(r) {
   window._detailRecord = r;
 
   const fields = [
-    ['Grupo',          r._sheet],
-    ['Ticket / RFC',   r.ticket],
-    ['Tipo',           r.tipo],
-    ['Ambiente',       r.ambiente],
-    ['SID / Sistema',  r.sistema],
-    ['Promotor',       r.promotor],
+    ['Grupo',          escapeHtml(r._sheet)],
+    ['Ticket / RFC',   escapeHtml(r.ticket)],
+    ['Tipo',           escapeHtml(r.tipo)],
+    ['Ambiente',       escapeHtml(r.ambiente)],
+    ['SID / Sistema',  escapeHtml(r.sistema)],
+    ['Promotor',       escapeHtml(r.promotor)],
     ['Fecha',          formatDate(r.fecha)],
     ['Hora Inicio',    formatHora(r.horaInicio)],
     ['Hora Fin (sin retorno)', formatHora(r.horaFin)],
     ['Hora Fin con Plan de Retorno', r.horaFinRetorno ? '<span style="color:var(--orange);font-weight:600">' + formatHora(r.horaFinRetorno) + '</span>' : '<span style="color:var(--text3)">— No aplicó retorno</span>'],
-    ['Status',         r.status ? `<span class="badge ${getStatusClass(r.status)}">${r.status}</span>` : '—'],
-    ['Descripción',    r.descripcion],
-    ['Observaciones',  r.observaciones],
+    ['Status',         r.status ? `<span class="badge ${getStatusClass(r.status)}">${escapeHtml(r.status)}</span>` : '—'],
+    ['Descripción',    escapeHtml(r.descripcion)],
+    ['Observaciones',  escapeHtml(r.observaciones)],
   ];
 
   document.getElementById('modal-content').innerHTML = `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:0">
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent);letter-spacing:1px">${r.ticket||'—'}</div>
-        <div style="font-size:12px;color:var(--text2);margin-top:3px;font-family:var(--mono)">${r._sheet||'—'} · ${r.sistema||'—'} · ${formatDate(r.fecha)}</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent);letter-spacing:1px">${escapeHtml(r.ticket||'—')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:3px;font-family:var(--mono)">${escapeHtml(r._sheet||'—')} · ${escapeHtml(r.sistema||'—')} · ${formatDate(r.fecha)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <span class="badge ${getStatusClass(r.status)}" style="font-size:12px">${r.status||'Sin status'}</span>
+        <span class="badge ${getStatusClass(r.status)}" style="font-size:12px">${escapeHtml(r.status||'Sin status')}</span>
         <button aria-label="Editar este RFC" onclick="editFromDetail()" style="
           display:inline-flex;align-items:center;gap:5px;
           padding:6px 12px;border-radius:6px;
@@ -2895,7 +2927,7 @@ function editFromDetail() {
       const banner = document.createElement('div');
       banner.id = 'edit-mode-banner';
       banner.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 14px;margin-bottom:14px;background:rgba(0,207,255,0.06);border:1px solid rgba(0,207,255,0.2);border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--accent)';
-      banner.innerHTML = `Editando: <b>${r.ticket||'?'}</b> &nbsp;·&nbsp; <span style="cursor:pointer;color:var(--text3);text-decoration:underline" onclick="cancelEdit()" aria-label="Cancelar edición del RFC">Cancelar edición</span>`;
+      banner.innerHTML = `Editando: <b>${escapeHtml(r.ticket||'?')}</b> &nbsp;·&nbsp; <span style="cursor:pointer;color:var(--text3);text-decoration:underline" onclick="cancelEdit()" aria-label="Cancelar edición del RFC">Cancelar edición</span>`;
       formSection.parentNode.insertBefore(banner, formSection);
     }
   }, 80);
@@ -3008,7 +3040,11 @@ function saveRecord() {
     _sheet: grupo,
     _local: true,
     _id: window._editingRecord?._id || Date.now(),
-    owner_id: CURRENT_USER ? CURRENT_USER.id : null
+    // owner_id: preservar dueño original al editar (nunca reasignar a quien edita);
+    // solo el creador o un admin pueden pasar la validación RLS de UPDATE en el servidor.
+    owner_id: window._editingRecord
+      ? (window._editingRecord.owner_id ?? null)
+      : (CURRENT_USER ? CURRENT_USER.id : null)
   };
 
   // ── Modo Edición: actualizar registro existente ──
@@ -3052,7 +3088,7 @@ function saveRecord() {
   });
   updateAlertBadge();
   clearForm();
-  navigate('sheet', sistema);
+  navigate('sheet');
 }
 
 function clearForm() {
@@ -3346,10 +3382,10 @@ const AUTH_SESSION_KEY = 'tqs_session';
 let CURRENT_USER = null;
 let _onbSistemas = [];
 
-// ── Helpers ──────────────────────────────────────────────────
-function authB64(str) { return btoa(unescape(encodeURIComponent(str))); }
-function authCheck(plain, hash) { return authB64(plain) === hash; }
-
+// ── Sesión: la autoridad real es el JWT de Supabase Auth (SB_ACCESS_TOKEN,
+// gestionado por supabase-js + RLS). Este blob local es solo caché de UI
+// (nombre/rol para pintar la interfaz) — no concede ningún permiso: cualquier
+// escritura la valida el servidor contra auth.uid(), no contra este objeto. ──
 function saveSession(user) {
   const session = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, sistemas: user.sistemas };
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
@@ -3387,23 +3423,28 @@ async function doLogin() {
   btn.textContent = 'Verificando…';
 
   try {
-    // Buscar usuario en Supabase
-    const data = await sbRequest('GET', `tqs_users?email=eq.${encodeURIComponent(email)}&limit=1&select=*`);
+    // Autenticación real contra Supabase Auth (JWT firmado por el servidor)
+    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password });
+    if (authErr || !authData.session) {
+      errEl.textContent = 'Correo o contraseña incorrectos';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.textContent = 'Ingresar →';
+      return;
+    }
+    SB_ACCESS_TOKEN = authData.session.access_token;
+
+    // Perfil (rol/nombre/sistemas) — ya autenticados, RLS permite leerlo
+    const data = await sbRequest('GET', `tqs_users?id=eq.${authData.user.id}&limit=1&select=*`);
     const user = data && data[0];
 
     if (!user || !user.activo) {
       errEl.textContent = 'Usuario no encontrado o inactivo';
       errEl.style.display = 'block';
+      await sb.auth.signOut();
       btn.disabled = false; btn.textContent = 'Ingresar →';
       return;
     }
-
-    if (!authCheck(password, user.password_hash)) {
-      errEl.textContent = 'Contraseña incorrecta';
-      errEl.style.display = 'block';
-      btn.disabled = false; btn.textContent = 'Ingresar →';
-      return;
-    }
+    user.email = authData.user.email;
 
     // Login OK
     if (user.primer_login) {
@@ -3499,10 +3540,10 @@ async function loadTQSParaFTE() {
         + 'data-tqs-id="' + tqs.id + '">'
         + '<div style="display:flex;align-items:center;gap:8px;width:100%;pointer-events:none">'
         + '<div id="tqs-check-' + tqs.id + '" style="width:18px;height:18px;border-radius:3px;border:2px solid var(--border2);background:transparent;flex-shrink:0;transition:all 0.15s"></div>'
-        + '<span style="font-weight:600;color:var(--text)">' + tqs.nombre + '</span>'
+        + '<span style="font-weight:600;color:var(--text)">' + escapeHtml(tqs.nombre) + '</span>'
         + '<span style="font-size:9px;color:var(--accent);font-family:var(--mono);margin-left:auto">TQS LEADER</span>'
         + '</div>'
-        + '<div style="font-size:11px;color:var(--text3);padding-left:26px">' + sistemas + '</div>'
+        + '<div style="font-size:11px;color:var(--text3);padding-left:26px">' + escapeHtml(sistemas) + '</div>'
         + '</div>';
     });
     el.innerHTML = items.join('');
@@ -3582,8 +3623,8 @@ function renderOnbSistemas() {
   } else {
     el.innerHTML = _onbSistemas.map(s =>
       `<div class="sistema-tag">
-        <span>${s}</span>
-        <button class="sistema-tag-del" onclick="removeOnbSistema('${s}')">×</button>
+        <span>${escapeHtml(s)}</span>
+        <button class="sistema-tag-del" onclick="removeOnbSistema('${jsAttrString(s)}')">×</button>
       </div>`
     ).join('');
   }
@@ -3672,8 +3713,8 @@ function buildUserSidebar(user) {
   if (!container) return;
 
   container.innerHTML = sistemas.map(s =>
-    `<div class="nav-item" onclick="navigate('sheet','${s.replace(/'/g,"\'")}')" id="nav-${CSS.escape(s)}">
-      <span class="sys-dot" style="background:${getSistemaColor(s)}"></span><span>${s}</span>
+    `<div class="nav-item" onclick="navigate('sheet','${jsAttrString(s)}')" id="nav-${CSS.escape(s)}">
+      <span class="sys-dot" style="background:${getSistemaColor(s)}"></span><span>${escapeHtml(s)}</span>
     </div>`
   ).join('');
 }
@@ -3710,7 +3751,9 @@ document.addEventListener('click', e => {
   if (menu && badge && !badge.contains(e.target)) menu.classList.remove('open');
 });
 
-function doLogout() {
+async function doLogout() {
+  await sb.auth.signOut();
+  SB_ACCESS_TOKEN = null;
   clearSession();
   CURRENT_USER = null;
   // Reset sidebar
@@ -3765,24 +3808,24 @@ async function renderUsersPage() {
             ${(u.nombre||'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase()}
           </div>
           <div>
-            <div style="font-weight:600;color:var(--text)">${u.nombre||'—'}</div>
-            <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.email}</div>
+            <div style="font-weight:600;color:var(--text)">${escapeHtml(u.nombre||'—')}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${escapeHtml(u.email)}</div>
           </div>
         </div>
       </td>
-      <td><span class="badge ${u.rol==='admin'?'badge-red':u.rol==='tqs_leader'?'badge-yellow':'badge-blue'}">${rolLabel[u.rol]||u.rol}</span></td>
+      <td><span class="badge ${u.rol==='admin'?'badge-red':u.rol==='tqs_leader'?'badge-yellow':'badge-blue'}">${escapeHtml(rolLabel[u.rol]||u.rol)}</span></td>
       <td style="font-size:11px;color:var(--text3)">${(u.sistemas||[]).length} sistemas</td>
       <td><span class="badge ${u.activo?'badge-green':'badge-gray'}">${u.activo?'Activo':'Inactivo'}</span></td>
       <td style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.primer_login?'Pendiente':'Completado'}</td>
       <td>
         <div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" aria-label="Ver sistemas del usuario" onclick="viewUserSystems('','${u.nombre}')" title="Ver sistemas">Sistemas</button>
-          ${u.activo 
-            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Desactivar usuario" onclick="toggleUserActivo('${u.id}',false,'${u.nombre}')" title="Desactivar">Desactivar</button>`
-            : `<button class="btn btn-ghost btn-sm" style="color:var(--green)" aria-label="Activar usuario" onclick="toggleUserActivo('${u.id}',true,'${u.nombre}')" title="Activar">Activar</button>`
+          <button class="btn btn-ghost btn-sm" aria-label="Ver sistemas del usuario" onclick="viewUserSystems('${u.id}','${jsAttrString(u.nombre)}')" title="Ver sistemas">Sistemas</button>
+          ${u.activo
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Desactivar usuario" onclick="toggleUserActivo('${u.id}',false,'${jsAttrString(u.nombre)}')" title="Desactivar">Desactivar</button>`
+            : `<button class="btn btn-ghost btn-sm" style="color:var(--green)" aria-label="Activar usuario" onclick="toggleUserActivo('${u.id}',true,'${jsAttrString(u.nombre)}')" title="Activar">Activar</button>`
           }
           ${CURRENT_USER && CURRENT_USER.rol === 'admin' && u.id !== CURRENT_USER.id
-            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Eliminar usuario" onclick="deleteUser('${u.id}','${(u.nombre||'').replace(/'/g,'\\\'')}')" title="Eliminar usuario y toda su información">Eliminar</button>`
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Eliminar usuario" onclick="deleteUser('${u.id}','${jsAttrString(u.nombre)}')" title="Eliminar usuario y toda su información">Eliminar</button>`
             : ''
           }
         </div>
@@ -3814,6 +3857,24 @@ function showNewUserModal() {
   document.getElementById('modal-new-user').classList.add('open');
 }
 
+// Gestión de usuarios: pasa por la Edge Function `admin-users` (service_role),
+// nunca por REST directo — crear/borrar requiere tocar auth.users, algo que el
+// cliente (aun autenticado como admin) no tiene permiso de hacer.
+async function callAdminUsers(body) {
+  const resp = await fetch(SB_URL + '/functions/v1/admin-users', {
+    method: 'POST',
+    headers: {
+      'apikey': SB_ANON,
+      'Authorization': 'Bearer ' + (SB_ACCESS_TOKEN || ''),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data.error || ('Error ' + resp.status));
+  return data;
+}
+
 async function createNewUser() {
   const nombre   = document.getElementById('nu-nombre').value.trim();
   const email    = document.getElementById('nu-email').value.trim().toLowerCase();
@@ -3829,15 +3890,7 @@ async function createNewUser() {
   }
 
   try {
-    await sbRequest('POST', 'tqs_users', {
-      email,
-      password_hash: authB64(password),
-      nombre,
-      rol,
-      sistemas: [],
-      primer_login: true,
-      activo: true
-    });
+    await callAdminUsers({ action: 'create', email, password, nombre, rol, sistemas: [] });
     document.getElementById('modal-new-user').classList.remove('open');
     showToast('Usuario creado: ' + nombre, 'success');
     renderUsersPage();
@@ -3851,7 +3904,7 @@ async function toggleUserActivo(id, activo, nombre) {
   const accion = activo ? 'activar' : 'desactivar';
   if (!confirm(`¿${accion.charAt(0).toUpperCase()+accion.slice(1)} al usuario "${nombre}"?`)) return;
   try {
-    await sbRequest('PATCH', `tqs_users?id=eq.${id}`, { activo });
+    await callAdminUsers({ action: 'toggleActivo', id, activo });
     showToast(`Usuario ${activo?'activado':'desactivado'}: ${nombre}`, 'success');
     renderUsersPage();
   } catch(e) {
@@ -3884,7 +3937,8 @@ async function deleteUser(id, nombre) {
   try {
     showToast('Eliminando información del usuario...', 'info');
 
-    // 1) Contar lo que se va a borrar (informativo)
+    // Contar lo que se va a borrar (informativo) — el borrado real (RFCs,
+    // solicitudes, fila tqs_users y la cuenta de auth) lo hace admin-users.
     let rfcsCount = 0, solCount = 0;
     try {
       const rfcsList = await sbRequest('GET', 'rfcs?select=id&owner_id=eq.' + id + '&limit=10000');
@@ -3895,19 +3949,7 @@ async function deleteUser(id, nombre) {
       solCount = (solList || []).length;
     } catch(_) {}
 
-    // 2) Borrar RFCs del usuario
-    if (rfcsCount > 0) {
-      await sbRequest('DELETE', 'rfcs?owner_id=eq.' + id);
-    }
-
-    // 3) Borrar solicitudes del usuario
-    if (solCount > 0) {
-      try { await sbRequest('DELETE', 'solicitudes?owner_id=eq.' + id); }
-      catch(e) { console.warn('No se pudieron borrar solicitudes:', e.message); }
-    }
-
-    // 4) Borrar el usuario
-    await sbRequest('DELETE', 'tqs_users?id=eq.' + id);
+    await callAdminUsers({ action: 'delete', id });
 
     showToast('Usuario "' + nombre + '" eliminado (' + rfcsCount + ' RFCs, ' + solCount + ' solicitudes)', 'success');
     renderUsersPage();
@@ -3922,13 +3964,13 @@ async function viewUserSystems(id, nombre) {
   const user = data && data[0];
   if (!user) return;
   const sistemas = user.sistemas || [];
-  const lista = sistemas.length > 0 
-    ? sistemas.map(s => `<div class="sistema-tag"><span>${s}</span></div>`).join('')
+  const lista = sistemas.length > 0
+    ? sistemas.map(s => `<div class="sistema-tag"><span>${escapeHtml(s)}</span></div>`).join('')
     : '<div class="sistemas-empty">Sin sistemas configurados</div>';
-  
+
   document.getElementById('modal-content').innerHTML = `
     <div style="margin-bottom:12px">
-      <div style="font-size:16px;font-weight:700;color:var(--accent)">${nombre}</div>
+      <div style="font-size:16px;font-weight:700;color:var(--accent)">${escapeHtml(nombre)}</div>
       <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">
         Onboarding: ${user.primer_login ? 'Pendiente' : 'Completado'}
       </div>
@@ -4002,8 +4044,8 @@ async function solCargarTQSSelect() {
     container.innerHTML = tqsList.map(t => `
       <label class="tqs-multi-item">
         <input type="checkbox" value="${t.id}" name="sol-tqs-cb">
-        <span>${t.nombre}</span>
-        <span style="font-size:10px;color:var(--text3);margin-left:auto">${(t.sistemas||[]).join(', ').substring(0,30)}</span>
+        <span>${escapeHtml(t.nombre)}</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:auto">${escapeHtml((t.sistemas||[]).join(', ').substring(0,30))}</span>
       </label>`).join('');
   } catch(e) {
     container.innerHTML = '<div style="color:var(--red);font-size:12px">Error: ' + e.message + '</div>';
@@ -4035,8 +4077,8 @@ function solRenderActionItems() {
   el.innerHTML = _solActionItems.map((ai, idx) => `
     <div class="action-item-row">
       <span style="font-family:var(--mono);font-size:11px;color:var(--text3);width:20px;flex-shrink:0">${ai.num}.</span>
-      <input class="form-input sol-ai-input" style="flex:1;padding:5px 8px;font-size:12px" 
-        value="${ai.texto}" placeholder="Descripción del action item..."
+      <input class="form-input sol-ai-input" style="flex:1;padding:5px 8px;font-size:12px"
+        value="${escapeHtml(ai.texto)}" placeholder="Descripción del action item..."
         oninput="_solActionItems[${idx}].texto=this.value">
       <input type="checkbox" ${ai.done?'checked':''} style="accent-color:var(--green);width:14px;height:14px;flex-shrink:0"
         onchange="_solActionItems[${idx}].done=this.checked" title="Completado">
@@ -4054,8 +4096,8 @@ function solRenderBitacoraPreview() {
   }
   el.innerHTML = [..._solBitacora].reverse().map(b => `
     <div class="bitacora-entry">
-      <div class="bitacora-ts">${b.ts} · ${b.autor || 'Sistema'}</div>
-      <div style="font-size:13px;color:var(--text)">${b.texto}</div>
+      <div class="bitacora-ts">${escapeHtml(b.ts)} · ${escapeHtml(b.autor || 'Sistema')}</div>
+      <div style="font-size:13px;color:var(--text)">${escapeHtml(b.texto)}</div>
     </div>`).join('');
 }
 
@@ -4193,16 +4235,16 @@ function solRenderList() {
     const aiCount = (s.action_items||[]).length;
     const bitCount = (s.bitacora||[]).length;
     const estCls = estatusClass[s.estatus] || 'sol-est-espera';
-    return `<div class="sol-card" style="--sol-color:${color}" onclick="solVerDetalle(${JSON.stringify(s).replace(/"/g,'&quot;')})">
+    return `<div class="sol-card" style="--sol-color:${color}" onclick="solVerDetalle(${jsonForAttr(s)})">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
-        <span class="sol-tipo sol-tipo-${s.tipo}">${s.tipo}</span>
-        <span class="sol-estatus ${estCls}">${s.estatus}</span>
+        <span class="sol-tipo sol-tipo-${escapeHtml(s.tipo)}">${escapeHtml(s.tipo)}</span>
+        <span class="sol-estatus ${estCls}">${escapeHtml(s.estatus)}</span>
         <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto">${fechaStr}</span>
       </div>
-      <div style="font-size:13px;color:var(--text);margin-bottom:6px;font-weight:500">${s.descripcion?.substring(0,120)||'—'}${(s.descripcion||'').length>120?'…':''}</div>
+      <div style="font-size:13px;color:var(--text);margin-bottom:6px;font-weight:500">${escapeHtml(s.descripcion?.substring(0,120)||'—')}${(s.descripcion||'').length>120?'…':''}</div>
       <div style="display:flex;gap:12px;font-family:var(--mono);font-size:10px;color:var(--text3)">
-        ${s.sistema_sap?`<span>${s.sistema_sap}</span>`:''}
-        ${s.responsable?`<span>${s.responsable}</span>`:''}
+        ${s.sistema_sap?`<span>${escapeHtml(s.sistema_sap)}</span>`:''}
+        ${s.responsable?`<span>${escapeHtml(s.responsable)}</span>`:''}
         ${aiCount?`<span>${aiCount} actions</span>`:''}
         ${bitCount?`<span>${bitCount} entradas</span>`:''}
       </div>
@@ -4218,31 +4260,31 @@ function solVerDetalle(s) {
   if (!modal || !body) return;
 
   modal._solId = s.id;
-  title.innerHTML = `<span class="sol-tipo sol-tipo-${s.tipo}" style="margin-right:8px">${s.tipo}</span> ${s.descripcion?.substring(0,50)||'Solicitud'}`;
+  title.innerHTML = `<span class="sol-tipo sol-tipo-${escapeHtml(s.tipo)}" style="margin-right:8px">${escapeHtml(s.tipo)}</span> ${escapeHtml(s.descripcion?.substring(0,50)||'Solicitud')}`;
 
   const fechaStr = s.fecha_inicio ? new Date(s.fecha_inicio+'T00:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
   const aiHtml = (s.action_items||[]).length ? s.action_items.map(ai =>
     `<div class="action-item-row">
       <span style="font-family:var(--mono);font-size:11px;color:var(--text3);width:20px">${ai.num}.</span>
-      <span style="flex:1;font-size:12px;${ai.done?'text-decoration:line-through;color:var(--text3)':''}">${ai.texto}</span>
+      <span style="flex:1;font-size:12px;${ai.done?'text-decoration:line-through;color:var(--text3)':''}">${escapeHtml(ai.texto)}</span>
       <span style="font-size:11px">${ai.done?'':''}</span>
     </div>`).join('') : '<div style="color:var(--text3);font-size:12px">Sin action items</div>';
 
   const bitHtml = (s.bitacora||[]).length ? [...s.bitacora].reverse().map(b =>
     `<div class="bitacora-entry">
-      <div class="bitacora-ts">${b.ts} · ${b.autor||'Sistema'}</div>
-      <div style="font-size:13px;color:var(--text)">${b.texto}</div>
+      <div class="bitacora-ts">${escapeHtml(b.ts)} · ${escapeHtml(b.autor||'Sistema')}</div>
+      <div style="font-size:13px;color:var(--text)">${escapeHtml(b.texto)}</div>
     </div>`).join('') : '<div style="color:var(--text3);font-size:12px">Sin entradas</div>';
 
   body.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
       <div><div class="form-label">Fecha Inicio</div><div style="font-size:13px;color:var(--text)">${fechaStr}</div></div>
-      <div><div class="form-label">Sistema SAP</div><div style="font-size:13px;color:var(--text)">${s.sistema_sap||'—'}</div></div>
-      <div><div class="form-label">Responsable</div><div style="font-size:13px;color:var(--text)">${s.responsable||'—'}</div></div>
-      <div><div class="form-label">Estatus</div><div class="sol-estatus ${{'Aprobado':'sol-est-Aprobado','En proceso':'sol-est-proceso','En espera de autorización':'sol-est-espera','Cerrado':'sol-est-Cerrado','Cancelado':'sol-est-Cancelado','Re-asignado':'sol-est-reasignado'}[s.estatus]||'sol-est-espera'}">${s.estatus}</div></div>
+      <div><div class="form-label">Sistema SAP</div><div style="font-size:13px;color:var(--text)">${escapeHtml(s.sistema_sap||'—')}</div></div>
+      <div><div class="form-label">Responsable</div><div style="font-size:13px;color:var(--text)">${escapeHtml(s.responsable||'—')}</div></div>
+      <div><div class="form-label">Estatus</div><div class="sol-estatus ${{'Aprobado':'sol-est-Aprobado','En proceso':'sol-est-proceso','En espera de autorización':'sol-est-espera','Cerrado':'sol-est-Cerrado','Cancelado':'sol-est-Cancelado','Re-asignado':'sol-est-reasignado'}[s.estatus]||'sol-est-espera'}">${escapeHtml(s.estatus)}</div></div>
     </div>
     <div style="margin-bottom:14px"><div class="form-label" style="margin-bottom:6px">Descripción</div>
-      <div style="font-size:13px;color:var(--text);line-height:1.6;background:var(--surface2);padding:10px 12px;border-radius:6px">${s.descripcion||'—'}</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.6;background:var(--surface2);padding:10px 12px;border-radius:6px">${escapeHtml(s.descripcion||'—')}</div>
     </div>
     <div style="margin-bottom:14px">
       <div class="form-section-title" style="margin-bottom:8px">Action Items</div>
@@ -4496,8 +4538,8 @@ async function renderSistemasPage() {
   
   const rows = data.map(function(d, idx) {
     return '<tr>' +
-      '<td style="font-weight:600;color:var(--text)">' + d.sistema + '</td>' +
-      '<td>' + (isAdmin ? d.owner_nombre : '<span style="color:var(--text3)">Tú</span>') + '</td>' +
+      '<td style="font-weight:600;color:var(--text)">' + escapeHtml(d.sistema) + '</td>' +
+      '<td>' + (isAdmin ? escapeHtml(d.owner_nombre) : '<span style="color:var(--text3)">Tú</span>') + '</td>' +
       '<td><span class="badge badge-blue">' + d.rfcs + ' RFCs</span></td>' +
       '<td>' +
         '<div style="display:flex;gap:4px">' +
@@ -4710,19 +4752,30 @@ function init() {
     weekday:'short', day:'2-digit', month:'short', year:'numeric'
   });
 
-  // Auth: verificar sesion activa
-  setTimeout(() => {
-    const session = loadSession();
-    if (session) {
-      CURRENT_USER = session;
+  // Auth: verificar sesión activa contra Supabase Auth (JWT real, no localStorage)
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { clearSession(); showAuthOverlay(); return; }
+    SB_ACCESS_TOKEN = session.access_token;
+    try {
+      const data = await sbRequest('GET', `tqs_users?id=eq.${session.user.id}&limit=1&select=*`);
+      const user = data && data[0];
+      if (!user || !user.activo) {
+        await sb.auth.signOut();
+        clearSession();
+        showAuthOverlay();
+        return;
+      }
+      user.email = session.user.email;
+      saveSession(user);
       hideAuthOverlay();
-      applyUserContext(session);
+      applyUserContext(CURRENT_USER);
       setGSStatus('connecting');
       loadFromSheets();
-    } else {
+    } catch (e) {
       showAuthOverlay();
     }
-  }, 50);
+  })();
 
   // Wire up GS buttons via addEventListener (more reliable than onclick)
   const gsBtn = document.getElementById('gs-config-btn');
@@ -4753,8 +4806,11 @@ function init() {
 function exportOldDB() {
   const currentYear = new Date().getFullYear();
   const keepYears = [currentYear, currentYear - 1];
-  const allSheets = ['CPROC','SOLMAN','Data Staging','Cloud Connector','Dynatrace','SCM & EWM','FDE & FR'];
-  
+  // Todos los sistemas realmente presentes en los datos (no una lista fija de 7):
+  // executeDeleteOldDB borra por fecha SIN filtrar por sistema, así que el backup
+  // debe cubrir cualquier sistema custom creado con createNewSistema o se pierde sin respaldo.
+  const allSheets = [...new Set(getAll().map(r => r._sheet).filter(Boolean))];
+
   let oldRecords = [];
   allSheets.forEach(sheet => {
     const data = getSheet(sheet);
@@ -4857,7 +4913,7 @@ function exportOldDB() {
 function confirmDeleteOldDB() {
   const currentYear = new Date().getFullYear();
   const keepYears = [currentYear, currentYear - 1];
-  const allSheets = ['CPROC','SOLMAN','Data Staging','Cloud Connector','Dynatrace','SCM & EWM','FDE & FR'];
+  const allSheets = [...new Set(getAll().map(r => r._sheet).filter(Boolean))];
 
   let countOld = 0;
   allSheets.forEach(sheet => {
@@ -4891,7 +4947,7 @@ function confirmDeleteOldDB() {
         Se conservará únicamente la información de <strong style="color:var(--green)">${keepYears[1]}</strong> y <strong style="color:var(--green)">${keepYears[0]}</strong>.
       </p>
       <p style="color:var(--red);text-align:center;font-size:12px;margin-bottom:24px">
-        Esta acción eliminará los registros directamente en Google Sheets.<br>
+        Esta acción eliminará los registros directamente en Supabase.<br>
         Asegúrate de haber exportado tu Export DB_OLD primero.
       </p>
       <div style="display:flex;gap:12px;justify-content:center">
