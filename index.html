@@ -830,6 +830,11 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
   </div>
 
 
+  <div class="sidebar-section" id="nav-direccion-section" style="display:none">Dirección</div>
+  <div class="nav-item" id="nav-direccion" onclick="navigate('direccion')" style="display:none">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-4"/></svg></span><span>Panel Ejecutivo</span>
+  </div>
+
   <div class="sidebar-section" id="nav-admin-section" style="display:none">Administración</div>
   <div class="nav-item" id="nav-usuarios" onclick="navigate('usuarios')" style="display:none">
     <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span><span>Usuarios</span>
@@ -992,6 +997,47 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
       </div>
       <div id="users-table-content">
         <div class="empty-state"><span class="icon"></span><p>Cargando usuarios...</p></div>
+      </div>
+    </div>
+
+    <!-- PANEL EJECUTIVO / DIRECCIÓN -->
+    <div class="page" id="page-direccion">
+      <div class="page-header">
+        <h1>Panel Ejecutivo <span class="tag" id="direccion-total-tag">0 registros</span></h1>
+      </div>
+
+      <div class="kpi-grid" id="direccion-kpi-grid"></div>
+
+      <div class="page-header" style="margin-top:20px;margin-bottom:12px">
+        <h1 style="font-size:15px">Desempeño por TQS</h1>
+      </div>
+      <div id="direccion-tqs-table"></div>
+
+      <div class="page-header" style="margin-top:20px;margin-bottom:12px">
+        <h1 style="font-size:15px">Carga de trabajo por TQS</h1>
+      </div>
+      <div class="stat-grid" id="direccion-workload-grid"></div>
+
+      <div class="page-header" style="margin-top:20px;margin-bottom:12px">
+        <h1 style="font-size:15px">Exportar CSV filtrado</h1>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px">
+        <div style="display:flex;gap:24px;flex-wrap:wrap">
+          <div>
+            <div class="form-label" style="margin-bottom:6px">Rango de fecha</div>
+            <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 12px">
+              <span style="font-size:12px;color:var(--text3);font-weight:600">Desde</span>
+              <input type="date" id="direccion-date-from" style="background:transparent;border:none;color:var(--text2);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer">
+              <span style="font-size:12px;color:var(--text3);font-weight:600">Hasta</span>
+              <input type="date" id="direccion-date-to" style="background:transparent;border:none;color:var(--text2);font-family:var(--mono);font-size:12px;outline:none;cursor:pointer">
+            </div>
+          </div>
+          <div style="flex:1;min-width:220px">
+            <div class="form-label" style="margin-bottom:6px">TQS (vacío = todos)</div>
+            <div id="direccion-tqs-checklist" style="max-height:120px;overflow-y:auto;border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 10px;background:var(--surface2)"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:14px" aria-label="Exportar CSV filtrado" onclick="exportDireccionCSV()">Exportar CSV</button>
       </div>
     </div>
 
@@ -1514,8 +1560,8 @@ async function loadFromSheets() {
         showToast('Sin TQS asignados. Contacta a tu administrador.', 'warning');
         return;
       }
-    } else if (CURRENT_USER && CURRENT_USER.rol === 'admin') {
-      // admin: ve todo (sin filtro)
+    } else if (CURRENT_USER && (CURRENT_USER.rol === 'admin' || CURRENT_USER.rol === 'director')) {
+      // admin y director: ven todo (sin filtro) — director es solo lectura, aplicado en la UI/RLS
       filterParam = 'rfcs?select=*&order=fecha.desc&limit=5000';
     } else {
       // tqs_leader: sus propios RFCs + los RFCs donde está asignado como TQS colaborador
@@ -1985,7 +2031,8 @@ const PAGE_SIZE = 40;
 function navigate(page, sheetName) {
   // Validacion de rol
   if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
-    if (page === 'nuevo' && CURRENT_USER.rol === 'fte') {
+    const readOnly = CURRENT_USER.rol === 'fte' || CURRENT_USER.rol === 'director';
+    if ((page === 'nuevo' || page === 'nueva-solicitud') && readOnly) {
       showToast('No tienes permisos para crear registros', 'warning');
       return;
     }
@@ -2059,6 +2106,11 @@ function navigate(page, sheetName) {
     sortDir = 'desc';
     populateYearFilter(sheetName);
     applyFilters();
+  } else if (page === 'direccion') {
+    document.getElementById('page-direccion').classList.add('active');
+    document.getElementById('nav-direccion')?.classList.add('active');
+    document.getElementById('topbar-title').textContent = 'Dirección';
+    renderDireccionPage();
   }
 }
 
@@ -2082,6 +2134,15 @@ function getStatusLabel(s) {
   if (!s) return '—';
   if (s.length > 22) return s.substring(0,22)+'…';
   return s;
+}
+// Bucket ejecutivo de un RFC, reutilizando exactamente la clasificación de
+// getStatusClass (mismos colores que ve el usuario en toda la app).
+function classifyRfcOutcome(status) {
+  const cls = getStatusClass(status);
+  if (cls === 'badge-green') return 'exito';
+  if (cls === 'badge-red') return 'fallido';
+  if (cls === 'badge-yellow') return 'pendiente';
+  return 'otro';
 }
 
 // ============================================================
@@ -3493,10 +3554,29 @@ async function onbNext() {
     // Mostrar paso FTE: seleccionar TQS a seguir
     document.getElementById('onb-step-2-fte').classList.add('active');
     await loadTQSParaFTE();
+  } else if (rol === 'director') {
+    // Dirección ve todo — no aplica seleccionar sistemas ni TQS a seguir
+    await onbFinishDirector();
   } else {
     // Mostrar paso TQS: agregar sistemas
     document.getElementById('onb-step-2-tqs').classList.add('active');
     document.getElementById('onb-sistema-input').focus();
+  }
+}
+
+async function onbFinishDirector() {
+  try {
+    await sbRequest('PATCH', `tqs_users?id=eq.${window._onbUserId}`, {
+      nombre: window._onbNombre,
+      primer_login: false,
+      updated_at: new Date().toISOString()
+    });
+    const data = await sbRequest('GET', `tqs_users?id=eq.${window._onbUserId}&limit=1`);
+    const user = data && data[0];
+    saveSession(user);
+    onLoginSuccess(user);
+  } catch(e) {
+    showToast('Error: ' + e.message, 'error');
   }
 }
 
@@ -3676,7 +3756,7 @@ function applyUserContext(user) {
 
   // Actualizar user badge en topbar
   const initials = (user.nombre || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-  const rolLabel = { admin:'ADMIN', tqs_leader:'TQS LEADER', fte:'FTE' }[user.rol] || user.rol.toUpperCase();
+  const rolLabel = { admin:'ADMIN', tqs_leader:'TQS LEADER', fte:'FTE', director:'DIRECCIÓN' }[user.rol] || user.rol.toUpperCase();
 
   const badge = document.getElementById('user-badge');
   if (badge) {
@@ -3721,14 +3801,14 @@ function buildUserSidebar(user) {
 
 // ── Restricciones por rol ─────────────────────────────────────
 function applyRoleRestrictions(rol) {
-  // FTE y lectura
-  if (rol === 'fte') {
+  // FTE y Dirección: solo lectura
+  if (rol === 'fte' || rol === 'director') {
     // Ocultar botones de edición y creación
-    document.querySelectorAll('#nav-nuevo, .btn-primary, .status-edit-btn, #gs-reload-btn').forEach(el => {
+    document.querySelectorAll('#nav-nuevo, #nav-nueva-solicitud, .btn-primary, .status-edit-btn, #gs-reload-btn').forEach(el => {
       if (el) el.style.display = 'none';
     });
     const _s = document.createElement('style');
-    _s.textContent = '.status-edit-btn{display:none!important;pointer-events:none!important}#nav-nuevo{display:none!important}';
+    _s.textContent = '.status-edit-btn{display:none!important;pointer-events:none!important}#nav-nuevo{display:none!important}#nav-nueva-solicitud{display:none!important}';
     document.head.appendChild(_s);
   }
   // Solo admin ve Export DB_OLD y DELETE_DB_OLD
@@ -3799,7 +3879,8 @@ async function renderUsersPage() {
     return;
   }
 
-  const rolLabel = { admin: 'Admin', tqs_leader: 'TQS Leader', fte: 'FTE' };
+  const rolLabel = { admin: 'Admin', tqs_leader: 'TQS Leader', fte: 'FTE', director: 'Dirección' };
+  const rolBadgeClass = { admin: 'badge-red', tqs_leader: 'badge-yellow', fte: 'badge-blue', director: 'badge-orange' };
   const rows = users.map(u => `
     <tr>
       <td>
@@ -3813,7 +3894,7 @@ async function renderUsersPage() {
           </div>
         </div>
       </td>
-      <td><span class="badge ${u.rol==='admin'?'badge-red':u.rol==='tqs_leader'?'badge-yellow':'badge-blue'}">${escapeHtml(rolLabel[u.rol]||u.rol)}</span></td>
+      <td><span class="badge ${rolBadgeClass[u.rol]||'badge-gray'}">${escapeHtml(rolLabel[u.rol]||u.rol)}</span></td>
       <td style="font-size:11px;color:var(--text3)">${(u.sistemas||[]).length} sistemas</td>
       <td><span class="badge ${u.activo?'badge-green':'badge-gray'}">${u.activo?'Activo':'Inactivo'}</span></td>
       <td style="font-size:11px;color:var(--text3);font-family:var(--mono)">${u.primer_login?'Pendiente':'Completado'}</td>
@@ -3987,7 +4068,9 @@ function applyAdminUI(rol) {
   const adminSection = document.getElementById('nav-admin-section');
   const adminNavUsers = document.getElementById('nav-usuarios');
   const adminNavSistemas = document.getElementById('nav-sistemas');
-  
+  const direccionSection = document.getElementById('nav-direccion-section');
+  const direccionNav = document.getElementById('nav-direccion');
+
   if (rol === 'admin') {
     if (adminSection) adminSection.style.display = '';
     if (adminNavUsers) adminNavUsers.style.display = '';
@@ -3999,6 +4082,11 @@ function applyAdminUI(rol) {
     }
     if (adminNavSistemas) adminNavSistemas.style.display = '';
   }
+
+  // Panel ejecutivo "Dirección": admin (superusuario) y el rol director
+  const showDireccion = (rol === 'admin' || rol === 'director') ? '' : 'none';
+  if (direccionSection) direccionSection.style.display = showDireccion;
+  if (direccionNav) direccionNav.style.display = showDireccion;
 }
 
 // ============================================================
@@ -4520,6 +4608,176 @@ async function loadSistemasData() {
     if (typeof logError === 'function') logError('Load Sistemas', e.message);
     return [];
   }
+}
+
+// ============================================================
+// PANEL EJECUTIVO / DIRECCIÓN — solo lectura, ve todos los TQS
+// ============================================================
+let _direccionTqsList = [];
+
+function direccionAggregateByOwner(records, tqsList) {
+  const byOwner = {};
+  tqsList.forEach(u => { byOwner[u.id] = { id: u.id, nombre: u.nombre, total: 0, exito: 0, fallido: 0, pendiente: 0, otro: 0 }; });
+  const sinAsignar = { id: null, nombre: 'Sin asignar', total: 0, exito: 0, fallido: 0, pendiente: 0, otro: 0 };
+  records.forEach(r => {
+    const bucket = (r.owner_id && byOwner[r.owner_id]) ? byOwner[r.owner_id] : sinAsignar;
+    bucket.total++;
+    bucket[classifyRfcOutcome(r.status)]++;
+  });
+  const rows = Object.values(byOwner);
+  if (sinAsignar.total > 0) rows.push(sinAsignar);
+  return rows.sort((a, b) => b.total - a.total);
+}
+
+async function renderDireccionPage() {
+  const records = getAll();
+  document.getElementById('direccion-total-tag').textContent = records.length + ' registros';
+
+  let tqsList = [];
+  try {
+    tqsList = await sbRequest('GET', 'tqs_users?rol=in.(admin,tqs_leader)&activo=eq.true&select=id,nombre') || [];
+  } catch(e) {}
+  _direccionTqsList = tqsList;
+
+  let solAbiertas = 0;
+  try {
+    const solRows = await sbRequest('GET', 'solicitudes?select=estatus&limit=2000') || [];
+    solAbiertas = solRows.filter(s => s.estatus !== 'Cerrado' && s.estatus !== 'Cancelado').length;
+  } catch(e) {}
+
+  // ── KPI ejecutivo ──
+  const total = records.length;
+  const exito = records.filter(r => classifyRfcOutcome(r.status) === 'exito').length;
+  const pendiente = records.filter(r => classifyRfcOutcome(r.status) === 'pendiente').length;
+  const pctExito = total > 0 ? Math.round(exito / total * 100) : 0;
+  const alertas = getAlerts().length;
+
+  document.getElementById('direccion-kpi-grid').innerHTML = `
+    <div class="kpi-card" style="--kpi-color:var(--accent)">
+      <div class="kpi-label">Total RFCs</div>
+      <div class="kpi-value">${total}</div>
+      <div class="kpi-sub">todos los TQS</div>
+      <div class="kpi-icon"></div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--green)">
+      <div class="kpi-label">% Éxito</div>
+      <div class="kpi-value">${pctExito}%</div>
+      <div class="kpi-sub">${exito} de ${total} finalizados con éxito</div>
+      <div class="kpi-icon"></div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--yellow)">
+      <div class="kpi-label">Pendientes VOBO</div>
+      <div class="kpi-value">${pendiente}</div>
+      <div class="kpi-sub">en espera de autorización</div>
+      <div class="kpi-icon"></div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:${alertas>0?'var(--red)':'var(--green)'}">
+      <div class="kpi-label">Alertas Activas</div>
+      <div class="kpi-value" style="color:${alertas>0?'var(--red)':'var(--green)'}">${alertas}</div>
+      <div class="kpi-sub">próximos 7 días sin auth</div>
+      <div class="kpi-icon"></div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--purple)">
+      <div class="kpi-label">Solicitudes Abiertas</div>
+      <div class="kpi-value">${solAbiertas}</div>
+      <div class="kpi-sub">no cerradas / no canceladas</div>
+      <div class="kpi-icon"></div>
+    </div>
+  `;
+
+  // ── Desempeño por TQS ──
+  const perTqs = direccionAggregateByOwner(records, tqsList);
+  const tqsTableEl = document.getElementById('direccion-tqs-table');
+  if (perTqs.length === 0) {
+    tqsTableEl.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin datos de TQS todavía</p></div>';
+  } else {
+    const rows = perTqs.map(t => {
+      const pct = t.total > 0 ? Math.round(t.exito / t.total * 100) : 0;
+      return `<tr>
+        <td style="font-weight:600;color:var(--text)">${escapeHtml(t.nombre)}</td>
+        <td class="mono">${t.total}</td>
+        <td class="mono" style="color:var(--green)">${t.exito}</td>
+        <td class="mono" style="color:var(--red)">${t.fallido}</td>
+        <td class="mono" style="color:var(--yellow)">${t.pendiente}</td>
+        <td class="mono" style="font-weight:600">${pct}%</td>
+      </tr>`;
+    }).join('');
+    tqsTableEl.innerHTML = `
+      <div class="table-wrap"><div class="table-scroll"><table>
+        <thead><tr><th>TQS</th><th>Total RFCs</th><th>Éxito</th><th>Fallido</th><th>Pendiente</th><th>% Éxito</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div></div>`;
+  }
+
+  // ── Carga de trabajo por TQS ──
+  const maxTotal = Math.max(1, ...perTqs.map(t => t.total));
+  document.getElementById('direccion-workload-grid').innerHTML = perTqs.map(t => {
+    const pctOfTotal = total > 0 ? Math.round(t.total / total * 100) : 0;
+    return `<div class="stat-card">
+      <div class="stat-card-name">${escapeHtml(t.nombre)}</div>
+      <div class="stat-bar-row">
+        <div class="stat-bar-label" style="color:var(--accent)">RFCs</div>
+        <div class="stat-bar-outer"><div class="stat-bar-inner" style="width:${t.total/maxTotal*100}%;background:var(--accent)"></div></div>
+        <div class="stat-bar-num">${t.total}</div>
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px;font-family:var(--mono)">${pctOfTotal}% de la carga total</div>
+    </div>`;
+  }).join('');
+
+  // ── Checklist de TQS para el export CSV filtrado ──
+  const checklistEl = document.getElementById('direccion-tqs-checklist');
+  checklistEl.innerHTML = tqsList.map(u => `
+    <label class="tqs-multi-item">
+      <input type="checkbox" value="${u.id}" name="direccion-tqs-cb">
+      <span>${escapeHtml(u.nombre)}</span>
+    </label>`).join('') || '<div style="color:var(--text3);font-size:12px">Sin TQS registrados</div>';
+}
+
+function exportDireccionCSV() {
+  const dateFrom = document.getElementById('direccion-date-from').value;
+  const dateTo = document.getElementById('direccion-date-to').value;
+  const selectedIds = Array.from(document.querySelectorAll('input[name="direccion-tqs-cb"]:checked')).map(cb => cb.value);
+
+  let records = getAll();
+  if (dateFrom) records = records.filter(r => (r.fecha || '') >= dateFrom);
+  if (dateTo)   records = records.filter(r => (r.fecha || '') <= dateTo);
+  if (selectedIds.length > 0) records = records.filter(r => selectedIds.includes(r.owner_id));
+
+  if (records.length === 0) {
+    toast('No hay registros para los filtros seleccionados', 'warning');
+    return;
+  }
+
+  const nombreById = {};
+  (_direccionTqsList || []).forEach(u => { nombreById[u.id] = u.nombre; });
+
+  const escape = v => `"${(v || '').toString().replace(/"/g, '""')}"`;
+  const headers = ['Sistema', 'Tipo', 'Ticket', 'Fecha', 'SID', 'TQS / Dueño', 'Promotor', 'Descripción', 'Status', 'Observaciones'];
+  const rows = [headers.join(',')];
+  records.forEach(r => {
+    rows.push([
+      escape(r._sheet),
+      escape(r.tipo),
+      escape(r.ticket),
+      escape(r.fecha),
+      escape(r.sistema),
+      escape(nombreById[r.owner_id] || 'Sin asignar'),
+      escape(r.promotor),
+      escape(r.descripcion),
+      escape(r.status),
+      escape(r.observaciones)
+    ].join(','));
+  });
+
+  const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.download = `ATLAS_Direccion_${dateFrom||'inicio'}_a_${dateTo||stamp}_${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exportados ${records.length} registros`, 'success');
 }
 
 async function renderSistemasPage() {
@@ -5144,6 +5402,7 @@ init();
         <select class="auth-input" id="nu-rol">
           <option value="tqs_leader">TQS Leader</option>
           <option value="fte">FTE (Solo lectura)</option>
+          <option value="director">Dirección (Solo lectura, ve todo)</option>
           <option value="admin">Admin</option>
         </select>
       </div>
