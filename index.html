@@ -571,6 +571,27 @@ body.theme-dark .page-btn.active{background:var(--accent);border-color:var(--acc
 #page-direccion details summary{color:#5F76A0}
 #page-direccion .form-label{color:#7C90B4}
 @media(max-width:900px){.cine-grid{grid-template-columns:1fr}#page-direccion .kpi-grid{grid-template-columns:repeat(2,1fr)}.cine-trow{grid-template-columns:110px 1fr 46px}}
+.cine-desc{font-size:11.5px;color:#8296B6;margin:1px 0 14px;line-height:1.4;max-width:72ch}
+.chart-desc{font-size:11.5px;color:var(--text3);margin:1px 0 13px;line-height:1.4}
+body.rol-director #page-dashboard{
+  --surface:rgba(20,34,60,0.55); --surface2:rgba(28,44,74,0.6); --surface3:rgba(120,160,220,.09);
+  --border:rgba(120,165,230,0.14); --border2:rgba(120,165,230,0.22);
+  --text:#EAF1FB; --text2:#9DB4D6; --text3:#5F76A0; --text4:#3a4d70; --accent2:#7CFFE6;
+  margin:-26px -28px -60px; padding:26px 28px 60px; min-height:calc(100vh - 62px);
+  background:
+    radial-gradient(85% 55% at 50% -6%, rgba(0,150,255,.14), transparent 60%),
+    radial-gradient(60% 45% at 82% 26%, rgba(255,120,60,.09), transparent 60%),
+    radial-gradient(55% 55% at 10% 92%, rgba(70,230,200,.07), transparent 60%),
+    linear-gradient(180deg,#0A1526 0%, #070d18 100%);
+}
+body.rol-director #page-dashboard .page-header h1{color:#EAF1FB}
+body.rol-director #page-dashboard .page-header .tag{background:rgba(0,190,254,.12);color:#7CFFE6;border:1px solid rgba(0,190,254,.25)}
+body.rol-director #page-dashboard .kpi-card{background:rgba(20,34,60,0.55);border:1px solid rgba(120,165,230,0.14);backdrop-filter:blur(14px);box-shadow:0 18px 50px rgba(2,8,20,.5),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
+body.rol-director #page-dashboard .kpi-card::after{content:'';position:absolute;right:-28px;top:-28px;width:110px;height:110px;border-radius:50%;background:var(--kpi-color,#00BEFE);filter:blur(34px);opacity:.32;pointer-events:none}
+body.rol-director #page-dashboard .kpi-value{color:#EAF1FB;font-family:var(--mono);font-weight:600}
+body.rol-director #page-dashboard .kpi-label{color:#7C90B4}
+body.rol-director #page-dashboard .exec-charts.cine{display:block}
+body.rol-director #page-dashboard .upcoming-card,body.rol-director #page-dashboard .alert-panel,body.rol-director #page-dashboard .table-wrap{background:rgba(20,34,60,0.5);border-color:rgba(120,165,230,0.14)}
 @media(max-width:900px){.exec-charts{grid-template-columns:1fr}}
 
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -1141,17 +1162,20 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
       <div class="cine-grid">
         <div class="cine-card">
           <div class="cine-h"><h3>Volumen de RFCs</h3><span class="k" id="dir-bars-k">línea = % éxito</span></div>
+          <div class="cine-desc">Cambios (RFCs) ejecutados por periodo. La línea marca el % que terminó con éxito — sube = mejor.</div>
           <div class="cine-cv"><canvas id="dir-bars" height="340"></canvas></div>
         </div>
         <div class="cine-stack">
           <div class="cine-card">
             <div class="cine-h"><h3>% Éxito global</h3><span class="k">meta 95%</span></div>
+            <div class="cine-desc">Proporción de RFCs finalizados sin incidentes sobre el total. Meta interna: 95%.</div>
             <div class="cine-cv" style="max-width:260px;margin:0 auto"><canvas id="dir-gauge" height="200"></canvas>
               <div class="cine-center"><div class="big" id="dir-gauge-num" style="font-size:38px">0%</div><div class="cap">Éxito</div></div>
             </div>
           </div>
           <div class="cine-card">
             <div class="cine-h"><h3>Carga por TQS</h3><span class="k" id="dir-donut-k">—</span></div>
+            <div class="cine-desc">Cómo se reparte el volumen de trabajo entre los líderes TQS.</div>
             <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
               <div class="cine-cv" style="width:150px;flex-shrink:0"><canvas id="dir-donut" height="150"></canvas>
                 <div class="cine-center"><div class="big" id="dir-donut-num" style="font-size:26px">0</div><div class="cap">RFCs</div></div>
@@ -1164,6 +1188,7 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
 
       <div class="cine-card full">
         <div class="cine-h"><h3>Desempeño por TQS</h3><span class="k">% de RFCs finalizados con éxito</span></div>
+        <div class="cine-desc">% de RFCs que cada líder finalizó con éxito. Barra más larga = mejor desempeño.</div>
         <div id="direccion-tqs-chart"></div>
       </div>
       <details style="margin-top:12px">
@@ -2549,7 +2574,8 @@ function renderDashboard() {
   }
 
   // Graficas ejecutivas de direccion (SVG self-contained, theme-aware)
-  renderExecCharts(all);
+  if (CURRENT_USER && CURRENT_USER.rol === 'director') { renderExecChartsCine(all); }
+  else { const _ec=document.getElementById('exec-charts'); if(_ec)_ec.classList.remove('cine'); renderExecCharts(all); }
 }
 
 // ============================================================
@@ -4244,6 +4270,7 @@ function onLoginSuccess(user, isFirstLogin) {
 
 function applyUserContext(user) {
   CURRENT_USER = user;
+  document.body.classList.toggle('rol-director', user.rol === 'director');
 
   // Actualizar user badge en topbar
   const initials = (user.nombre || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
@@ -5186,6 +5213,73 @@ function renderDirGauge(exito,total){
     c.save();if(!_dirRM()){c.shadowColor='#7CE06B';c.shadowBlur=14;}c.fillStyle='#7CE06B';c.beginPath();c.arc(cx+Math.cos(cur)*r,cy+Math.sin(cur)*r,6.5,0,7);c.fill();c.restore();
     if(num)num.textContent=Math.round(val*_dirEase(p))+'%';if(p<1)requestAnimationFrame(f);})(performance.now());
 }
+// ═══════════ toolkit de graficas cinematograficas reutilizable ═══════════
+const CINE_STATUS={exito:'#57D98A',espera:'#FFC46B',sinexito:'#FF6B6B',aprobado:'#4EA8FF',otros:'#8595A8'};
+function _trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
+function _roundRect(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function cineVBars(cv,S){
+  if(!cv)return;const t0=performance.now();cv._S=S;if(cv._hv==null)cv._hv=-1;
+  function draw(prog){const n=S.vol.length;const {c,w,h}=_dirFit(cv,cv.getAttribute('height')*1||330);
+    const padL=38,padR=16,padT=22,padB=38,DEP=13,pw=w-padL-padR,ph=h-padT-padB,base=padT+ph;
+    const max=Math.max(1,...S.vol)*1.18,step=pw/Math.max(1,n),bw=Math.min(46,step*0.52);c.clearRect(0,0,w,h);
+    const mono=getComputedStyle(document.body).getPropertyValue('--mono'),sans=getComputedStyle(document.body).getPropertyValue('--font');
+    c.strokeStyle='rgba(120,160,220,.09)';c.lineWidth=1;c.fillStyle='rgba(157,180,214,.5)';c.font='11px '+mono;c.textAlign='right';
+    for(let g=0;g<=4;g++){const gy=base-(g/4)*ph;c.beginPath();c.moveTo(padL,gy);c.lineTo(padL+pw,gy);c.stroke();c.fillText(Math.round(max*g/4),padL-8,gy+4);}
+    c.strokeStyle='rgba(120,160,220,.06)';for(let i=0;i<=n;i++){const x=padL+step*i;c.beginPath();c.moveTo(x,base);c.lineTo(x+DEP,base-DEP);c.stroke();}
+    c.beginPath();c.moveTo(padL+DEP,base-DEP);c.lineTo(padL+pw+DEP,base-DEP);c.stroke();
+    S.vol.forEach((v,i)=>{const bx=padL+step*i+(step-bw)/2;const fh=(v/max)*ph*(_dirRM()?1:Math.min(1,prog*1.4-i*0.04));const H=Math.max(0,fh),top=base-H,hot=i===cv._hv;
+      c.fillStyle=hot?'rgba(180,60,20,.95)':'rgba(120,40,14,.9)';c.beginPath();c.moveTo(bx+bw,top);c.lineTo(bx+bw+DEP,top-DEP);c.lineTo(bx+bw+DEP,base-DEP);c.lineTo(bx+bw,base);c.closePath();c.fill();
+      c.fillStyle=hot?'#FFE39A':'#FFCF7C';c.beginPath();c.moveTo(bx,top);c.lineTo(bx+bw,top);c.lineTo(bx+bw+DEP,top-DEP);c.lineTo(bx+DEP,top-DEP);c.closePath();c.fill();
+      const g=c.createLinearGradient(0,top,0,base);g.addColorStop(0,'#FFD27A');g.addColorStop(.5,'#FF8A4C');g.addColorStop(1,'#C22C08');
+      c.save();if(!_dirRM()){c.shadowColor='rgba(255,150,60,.55)';c.shadowBlur=hot?26:14;}c.fillStyle=g;c.fillRect(bx,top,bw,H);c.restore();
+      c.fillStyle='rgba(255,255,255,.35)';c.fillRect(bx,top,bw,1.5);});
+    if(S.suc){const tp=_dirRM()?1:Math.min(1,Math.max(0,(prog-0.25)/0.75));const pts=S.suc.map((s,i)=>[padL+step*i+step/2,padT+ph-(s/100)*ph*0.9]);const dn=Math.max(1,Math.floor(pts.length*tp));
+      c.save();c.lineJoin='round';c.lineCap='round';if(!_dirRM()){c.shadowColor='rgba(70,230,200,.8)';c.shadowBlur=16;}c.strokeStyle='#5CF0D6';c.lineWidth=2.6;c.beginPath();pts.slice(0,dn).forEach((pp,i)=>i?c.lineTo(pp[0],pp[1]):c.moveTo(pp[0],pp[1]));c.stroke();c.restore();
+      pts.slice(0,dn).forEach(pp=>{c.save();if(!_dirRM()){c.shadowColor='#7CFFE6';c.shadowBlur=12;}c.fillStyle='#0A1526';c.beginPath();c.arc(pp[0],pp[1],4.5,0,7);c.fill();c.lineWidth=2.2;c.strokeStyle='#7CFFE6';c.stroke();c.restore();});}
+    c.fillStyle='rgba(157,180,214,.75)';c.font='11px '+sans;c.textAlign='center';S.xl.forEach((x,i)=>c.fillText(x,padL+step*i+step/2,base+22));
+    if(cv._hv>=0&&cv._hv<n){const i=cv._hv,bx=padL+step*i+(step-bw)/2,H=(S.vol[i]/max)*ph;c.fillStyle='#fff';c.font='700 13px '+mono;c.textAlign='center';c.fillText(S.vol[i],bx+bw/2,base-H-DEP-8);}}
+  cv._draw=draw;draw(1);
+  if(!_dirRM()){(function a(t){const pr=Math.min(1,(t-t0)/1000);draw(pr);if(pr<1)requestAnimationFrame(a);})(performance.now());}
+  if(!cv._wired){cv._wired=1;cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();const S2=cv._S,n=S2.vol.length,padL=38,padR=16,pw=r.width-padL-padR,step=pw/Math.max(1,n);let idx=Math.floor((e.clientX-r.left-padL)/step);if(idx<0||idx>=n)idx=-1;if(idx!==cv._hv){cv._hv=idx;cv._draw(1);}const tip=_dirTip();if(idx>=0){tip.style.opacity=1;tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';tip.innerHTML='<div><b>'+S2.vol[idx]+'</b> RFCs · <span class="m">'+escapeHtml(S2.xl[idx])+'</span></div>'+(S2.suc?'<div class="m">'+S2.suc[idx]+'% éxito</div>':'');}else tip.style.opacity=0;});cv.addEventListener('mouseleave',()=>{cv._hv=-1;cv._draw(1);const tip=document.getElementById('dir-tip');if(tip)tip.style.opacity=0;});}}
+function cineHBars(cv,rows,hue){
+  if(!cv)return;hue=hue||{a:'#2C7D5B',b:'#57D98A',top:'#8FE9AC',side:'#1E5C42',glow:'rgba(87,217,138,.5)'};
+  const t0=performance.now();cv._rows=rows;if(cv._hv==null)cv._hv=-1;const rowH=42,bh=20,DEP=9;
+  function draw(prog){const {c,w,h}=_dirFit(cv,rows.length*rowH+14);const L=150,R=54,barMax=w-L-R;c.clearRect(0,0,w,h);
+    const mono=getComputedStyle(document.body).getPropertyValue('--mono'),sans=getComputedStyle(document.body).getPropertyValue('--font');
+    rows.forEach((r,i)=>{const cy=8+i*rowH+rowH/2,by=cy-bh/2,hot=i===cv._hv;const full=r.frac*barMax;const wv=Math.max(2,full*(_dirRM()?1:Math.min(1,prog*1.3-i*0.05)));
+      c.fillStyle='rgba(120,160,220,.09)';_roundRect(c,L,by,barMax,bh,bh/2);c.fill();
+      c.fillStyle=hue.side;c.beginPath();c.moveTo(L+wv,by);c.lineTo(L+wv+DEP,by-DEP);c.lineTo(L+wv+DEP,by+bh-DEP);c.lineTo(L+wv,by+bh);c.closePath();c.fill();
+      c.fillStyle=hue.top;c.beginPath();c.moveTo(L,by);c.lineTo(L+wv,by);c.lineTo(L+wv+DEP,by-DEP);c.lineTo(L+DEP,by-DEP);c.closePath();c.fill();
+      const g=c.createLinearGradient(L,0,L+Math.max(wv,1),0);g.addColorStop(0,hue.a);g.addColorStop(1,hue.b);
+      c.save();if(!_dirRM()){c.shadowColor=hue.glow;c.shadowBlur=hot?22:13;}c.fillStyle=g;_roundRect(c,L,by,wv,bh,Math.min(bh/2,wv/2));c.fill();c.restore();
+      c.fillStyle='#EAF1FB';c.font='600 13px '+sans;c.textAlign='left';c.textBaseline='middle';c.fillText(_trunc(r.name,18),0,cy);
+      c.fillStyle=hue.b;c.font='700 13px '+mono;c.textAlign='right';c.fillText(r.valLabel,w,cy);c.textBaseline='alphabetic';});}
+  cv._draw=draw;draw(1);
+  if(!_dirRM()){(function a(t){const pr=Math.min(1,(t-t0)/1000);draw(pr);if(pr<1)requestAnimationFrame(a);})(performance.now());}
+  if(!cv._wired){cv._wired=1;cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();let idx=Math.floor((e.clientY-r.top-8)/42);if(idx<0||idx>=cv._rows.length)idx=-1;if(idx!==cv._hv){cv._hv=idx;cv._draw(1);}const tip=_dirTip();if(idx>=0){const rr=cv._rows[idx];tip.style.opacity=1;tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';tip.innerHTML='<div><b>'+escapeHtml(rr.valLabel)+'</b> · <span class="m">'+escapeHtml(rr.name)+'</span></div>'+(rr.sub?'<div class="m">'+escapeHtml(rr.sub)+'</div>':'');}else tip.style.opacity=0;});cv.addEventListener('mouseleave',()=>{cv._hv=-1;cv._draw(1);const tip=document.getElementById('dir-tip');if(tip)tip.style.opacity=0;});}}
+function cineDonutOn(cv,segs,numEl){
+  if(!cv)return;const tot=segs.reduce((a,s)=>a+s.value,0)||1;const t0=performance.now();
+  (function f(t){const pr=_dirRM()?1:Math.min(1,(t-t0)/1000);const e=_dirEase(pr);const {c,w,h}=_dirFit(cv,150);const cx=w/2,cy=h/2,r=54,lw=20;c.clearRect(0,0,w,h);let a=-Math.PI/2;const gap=0.05;
+    segs.forEach(s=>{if(s.value<=0)return;const frac=s.value/tot;const a2=a+frac*Math.PI*2*e;c.save();if(!_dirRM()){c.shadowColor=s.color;c.shadowBlur=12;}c.strokeStyle=s.color;c.lineWidth=lw;c.lineCap='butt';c.beginPath();c.arc(cx,cy,r,a+gap,Math.max(a+gap,a2-gap));c.stroke();c.restore();a=a+frac*Math.PI*2*e;});
+    if(numEl)numEl.textContent=Math.round(tot*e);if(pr<1)requestAnimationFrame(f);})(performance.now());}
+function renderExecChartsCine(data){
+  const el=document.getElementById('exec-charts');if(!el)return;el.classList.add('cine');
+  const map={};data.forEach(r=>{const k=r._sheet||'—';if(!map[k])map[k]={total:0};map[k].total++;});
+  const sysRows=Object.keys(map).map(k=>({name:k,total:map[k].total})).sort((a,b)=>b.total-a.total);const maxSys=Math.max(1,...sysRows.map(r=>r.total));
+  const counts={};STATUS_BUCKETS.forEach(x=>counts[x.key]=0);data.forEach(r=>counts[bucketStatus(r.status)]++);const total=data.length||1;
+  el.innerHTML=
+    '<div class="cine-grid">'+
+      '<div class="cine-card"><div class="cine-h"><h3>Volumen de RFCs</h3><span class="k">12 meses</span></div><div class="cine-desc">Cambios ejecutados por mes. La línea marca el % que terminó con éxito.</div><div class="cine-cv"><canvas id="dash-bars" height="330"></canvas></div></div>'+
+      '<div class="cine-card"><div class="cine-h"><h3>Distribución por estatus</h3></div><div class="cine-desc">En qué estado terminaron los RFCs del periodo.</div><div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap"><div class="cine-cv" style="width:150px;flex-shrink:0"><canvas id="dash-donut" height="150"></canvas><div class="cine-center"><div class="big" id="dash-donut-num" style="font-size:26px">0</div><div class="cap">RFCs</div></div></div><div class="cine-legend" id="dash-donut-legend" style="flex:1;min-width:150px"></div></div></div>'+
+    '</div>'+
+    '<div class="cine-card full"><div class="cine-h"><h3>Carga por sistema</h3><span class="k">'+sysRows.length+' sistemas</span></div><div class="cine-desc">Volumen de cambios por sistema SAP. Barra más larga = más actividad.</div><div class="cine-cv"><canvas id="dash-sys" height="'+(sysRows.length*42+14)+'"></canvas></div></div>';
+  document.getElementById('dash-donut-legend').innerHTML=STATUS_BUCKETS.map(s=>{const cc=counts[s.key];if(!cc)return '';const col=CINE_STATUS[s.key];return '<div class="lg"><span class="dot" style="background:'+col+';color:'+col+'"></span><span class="nm">'+s.label+'</span><span class="vl">'+cc+'</span><span class="pc">'+Math.round(cc/total*100)+'%</span></div>';}).join('');
+  cineVBars(document.getElementById('dash-bars'),dirSeries(data,'mes'));
+  cineDonutOn(document.getElementById('dash-donut'),STATUS_BUCKETS.filter(s=>counts[s.key]>0).map(s=>({value:counts[s.key],color:CINE_STATUS[s.key]})),document.getElementById('dash-donut-num'));
+  cineHBars(document.getElementById('dash-sys'),sysRows.map(r=>({name:r.name,frac:r.total/maxSys,valLabel:''+r.total,sub:r.total+' RFCs'})),{a:'#8A4A12',b:'#FF8A4C',top:'#FFCF7C',side:'#7A2E0A',glow:'rgba(255,150,60,.5)'});
+  document.querySelectorAll('#kpi-grid .kpi-value').forEach(elm=>{const m=(elm.textContent||'').match(/-?[\d.]+/);if(!m)return;const to=parseFloat(m[0]);const suf=elm.textContent.replace(m[0],'');elm.dataset.v=0;elm.textContent='0'+suf;_dirCountUp(elm,to,suf);});
+}
+
 function renderDonutChart(perTqs, total){
   const cv=document.getElementById('dir-donut');if(!cv)return;
   const top=perTqs.filter(x=>x.total>0).slice(0,5);
@@ -5244,10 +5338,8 @@ function renderTqsPerformanceChart(perTqs){
   const el=document.getElementById('direccion-tqs-chart');if(!el)return;
   const wd=perTqs.filter(t=>t.total>0);
   if(!wd.length){el.innerHTML='<div class="chart-empty">Sin datos de TQS todavía</div>';return;}
-  el.innerHTML='<div class="cine-tqs">'+wd.map(t=>{const pct=Math.round(t.exito/t.total*100);
-    return '<div class="cine-trow" title="'+escapeHtml(t.nombre)+': '+t.total+' RFC · '+pct+'% éxito"><div class="nm">'+escapeHtml(t.nombre)+'</div><div class="cine-track"><div class="cine-fill" data-w="'+pct+'"></div></div><div class="pc">'+pct+'%</div></div>';
-  }).join('')+'</div>';
-  requestAnimationFrame(()=>el.querySelectorAll('.cine-fill').forEach(f=>f.style.width=f.dataset.w+'%'));
+  el.innerHTML='<div class="cine-cv"><canvas id="dir-tqs-cv" height="'+(wd.length*42+14)+'"></canvas></div>';
+  cineHBars(document.getElementById('dir-tqs-cv'),wd.map(t=>{const pct=Math.round(t.exito/t.total*100);return {name:t.nombre,frac:pct/100,valLabel:pct+'%',sub:t.total+' RFC · '+pct+'% éxito'};}),null);
 }
 
 async function renderDireccionPage() {
