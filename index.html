@@ -5,7 +5,7 @@
   <meta name="description" content="ATLAS · SAP Operations Suite — Control y trazabilidad de RFCs, solicitudes y operación SAP. EAS Consulting × DXC Technology. Portal interno.">
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#103268">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://zhfmhaqwmkooxxufnncp.supabase.co; object-src 'none'; base-uri 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://zhfmhaqwmkooxxufnncp.supabase.co; object-src 'none'; base-uri 'self';">
   <!-- frame-ancestors/X-Frame-Options no se pueden fijar vía <meta> (el navegador los ignora ahí);
        requieren cabecera HTTP real, que GitHub Pages no permite configurar. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -913,6 +913,9 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
           <button class="user-menu-item" id="gs-config-btn" aria-label="Configuración de conexión">Configuración de conexión</button>
           <button class="user-menu-item" id="gs-reload-btn" aria-label="Recargar datos" style="display:none" onclick="loadFromSheets()">Recargar datos</button>
           <div class="user-menu-sep"></div>
+          <div class="user-menu-label">Carga masiva</div>
+          <button class="user-menu-item" id="btn-bulk-import" aria-label="Cargar RFCs desde Excel" onclick="showBulkImportModal()" title="Descarga la plantilla, llénala y súbela para crear varios RFCs de una vez">Cargar RFCs desde Excel</button>
+          <div class="user-menu-sep"></div>
           <div class="user-menu-label">Base de datos</div>
           <button class="user-menu-item" aria-label="Exportar registros históricos" onclick="exportOldDB()" title="Exportar registros de años anteriores (CSV ejecutivo)">Exportar histórico (CSV)</button>
           <button class="user-menu-item danger" aria-label="Eliminar registros históricos" onclick="confirmDeleteOldDB()" title="Depurar BD — mantiene solo año actual y anterior">Depurar registros antiguos</button>
@@ -1387,6 +1390,7 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
 
 
@@ -3164,6 +3168,235 @@ function clearForm() {
 }
 
 // ============================================================
+// CARGA MASIVA DE RFCs DESDE EXCEL
+// ============================================================
+const BULK_IMPORT_MAX_ROWS = 2000;
+let _bulkImportRows = []; // { data: {...mismo shape que saveRecord()...}, status: 'ok'|'warn'|'error', reason, checked }
+
+function showBulkImportModal() {
+  document.getElementById('bulk-import-file').value = '';
+  document.getElementById('bulk-import-filename').textContent = '';
+  document.getElementById('bulk-import-preview-wrap').style.display = 'none';
+  document.getElementById('bulk-import-submit-btn').style.display = 'none';
+  document.getElementById('bulk-import-error').style.display = 'none';
+  _bulkImportRows = [];
+  document.getElementById('modal-bulk-import').classList.add('open');
+}
+function closeBulkImportModal() {
+  document.getElementById('modal-bulk-import').classList.remove('open');
+}
+
+function downloadRfcTemplate() {
+  const headers = ['Ticket (RFC)*', 'Fecha (YYYY-MM-DD)*', 'Sistema/Grupo*', 'Tipo*', 'Ambiente', 'SID', 'Promotor', 'Descripción', 'Observaciones', 'Status', 'Hora Inicio (HH:MM)', 'Hora Fin (HH:MM)', 'Hora Fin Retorno (HH:MM)'];
+  const ejemplo = ['CHG1234567', '2026-01-15', 'SOLMAN', 'RFC', 'Azure', 'S4D', 'Juan Pérez', 'Actualización de parámetros', 'Sin incidencias', 'Finalizado con Éxito', '20:00', '22:30', ''];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ejemplo]);
+  ws['!cols'] = headers.map(() => ({ wch: 22 }));
+
+  const misSistemas = (CURRENT_USER && CURRENT_USER.sistemas) || [];
+  const wsSistemas = XLSX.utils.aoa_to_sheet(
+    misSistemas.length > 0
+      ? [['Sistemas asignados a ti'], ...misSistemas.map(s => [s])]
+      : [['Sin sistemas asignados aún — puedes escribir cualquier nombre de sistema, o contacta a tu administrador']]
+  );
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'RFCs');
+  XLSX.utils.book_append_sheet(wb, wsSistemas, 'Sistemas válidos');
+  XLSX.writeFile(wb, 'ATLAS_Plantilla_Carga_RFCs.xlsx');
+}
+
+// Encabezados en español (normalizados a minúsculas) -> campos internos, mismo shape que usa saveRecord()
+const BULK_IMPORT_HEADER_MAP = {
+  'ticket (rfc)*': 'ticket', 'ticket (rfc)': 'ticket', 'ticket': 'ticket',
+  'fecha (yyyy-mm-dd)*': 'fecha', 'fecha (yyyy-mm-dd)': 'fecha', 'fecha': 'fecha',
+  'sistema/grupo*': 'sistema_grupo', 'sistema/grupo': 'sistema_grupo', 'sistema': 'sistema_grupo', 'grupo': 'sistema_grupo',
+  'tipo*': 'tipo', 'tipo': 'tipo',
+  'ambiente': 'ambiente',
+  'sid': 'sid',
+  'promotor': 'promotor',
+  'descripción': 'descripcion', 'descripcion': 'descripcion',
+  'observaciones': 'observaciones',
+  'status': 'status',
+  'hora inicio (hh:mm)': 'horaInicio', 'hora inicio': 'horaInicio',
+  'hora fin (hh:mm)': 'horaFin', 'hora fin': 'horaFin',
+  'hora fin retorno (hh:mm)': 'horaFinRetorno', 'hora fin retorno': 'horaFinRetorno',
+};
+
+// Acepta Date real de Excel, 'YYYY-MM-DD', o 'DD/MM/YYYY' como fallback de texto
+function parseFlexibleDate(val) {
+  if (!val && val !== 0) return null;
+  if (val instanceof Date && !isNaN(val)) {
+    const y = val.getFullYear(), m = String(val.getMonth() + 1).padStart(2, '0'), d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const dmy = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (dmy) {
+    const [, d, m, y] = dmy;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  return null;
+}
+
+async function handleBulkImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  document.getElementById('bulk-import-filename').textContent = file.name;
+  document.getElementById('bulk-import-error').style.display = 'none';
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true });
+    const sheetName = wb.SheetNames.includes('RFCs') ? 'RFCs' : wb.SheetNames[0];
+    const sheet = wb.Sheets[sheetName];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    if (rawRows.length === 0) throw new Error('El archivo no tiene filas de datos');
+    if (rawRows.length > BULK_IMPORT_MAX_ROWS) {
+      throw new Error(`El archivo tiene ${rawRows.length} filas — el máximo por carga es ${BULK_IMPORT_MAX_ROWS}. Divide el archivo en partes.`);
+    }
+
+    parseBulkImportRows(rawRows);
+    renderBulkImportPreview();
+  } catch(e) {
+    const errEl = document.getElementById('bulk-import-error');
+    errEl.textContent = 'Error leyendo el archivo: ' + e.message;
+    errEl.style.display = 'block';
+    document.getElementById('bulk-import-preview-wrap').style.display = 'none';
+    document.getElementById('bulk-import-submit-btn').style.display = 'none';
+  }
+}
+
+function parseBulkImportRows(rawRows) {
+  const misSistemas = (CURRENT_USER && CURRENT_USER.sistemas) || [];
+  const existingTickets = new Set(getAll().map(r => (r.ticket || '').toUpperCase().trim()).filter(Boolean));
+  const seenInFile = new Set();
+
+  _bulkImportRows = rawRows.map(raw => {
+    const data = {};
+    Object.keys(raw).forEach(key => {
+      const field = BULK_IMPORT_HEADER_MAP[key.toLowerCase().trim()];
+      if (field) data[field] = typeof raw[key] === 'string' ? raw[key].trim() : raw[key];
+    });
+
+    const ticket = (data.ticket || '').toString().trim();
+    const fechaParsed = parseFlexibleDate(data.fecha);
+    const sistemaGrupo = (data.sistema_grupo || '').toString().trim();
+    const tipo = (data.tipo || '').toString().trim();
+
+    let status = 'ok', reason = '';
+
+    if (!ticket || !fechaParsed || !sistemaGrupo || !tipo) {
+      status = 'error';
+      const faltantes = [];
+      if (!ticket) faltantes.push('Ticket');
+      if (!fechaParsed) faltantes.push('Fecha' + (data.fecha ? ' (formato no reconocido)' : ''));
+      if (!sistemaGrupo) faltantes.push('Sistema/Grupo');
+      if (!tipo) faltantes.push('Tipo');
+      reason = 'Falta: ' + faltantes.join(', ');
+    } else {
+      const ticketUpper = ticket.toUpperCase();
+      if (existingTickets.has(ticketUpper) || seenInFile.has(ticketUpper)) {
+        status = 'warn';
+        reason = 'Ticket duplicado';
+      } else if (misSistemas.length > 0 && !misSistemas.includes(sistemaGrupo)) {
+        status = 'warn';
+        reason = 'Sistema no asignado a ti';
+      }
+      seenInFile.add(ticketUpper);
+    }
+
+    return {
+      data: {
+        tipo, ticket, fecha: fechaParsed || '',
+        sistema: (data.sid || sistemaGrupo || '').toString().trim(),
+        _sheet: sistemaGrupo,
+        ambiente: (data.ambiente || '').toString().trim(),
+        promotor: (data.promotor || '').toString().trim(),
+        descripcion: (data.descripcion || '').toString().trim(),
+        observaciones: (data.observaciones || '').toString().trim(),
+        status: (data.status || '').toString().trim(),
+        horaInicio: (data.horaInicio || '').toString().trim(),
+        horaFin: (data.horaFin || '').toString().trim(),
+        horaFinRetorno: (data.horaFinRetorno || '').toString().trim(),
+      },
+      status, reason,
+      checked: status !== 'error',
+    };
+  });
+}
+
+function toggleBulkImportRow(idx) {
+  const row = _bulkImportRows[idx];
+  if (!row || row.status === 'error') return;
+  row.checked = !row.checked;
+  renderBulkImportPreview();
+}
+
+function renderBulkImportPreview() {
+  const wrap = document.getElementById('bulk-import-preview-wrap');
+  const body = document.getElementById('bulk-import-preview-body');
+  const summaryEl = document.getElementById('bulk-import-summary');
+  const submitBtn = document.getElementById('bulk-import-submit-btn');
+
+  const okCount = _bulkImportRows.filter(r => r.status === 'ok').length;
+  const warnCount = _bulkImportRows.filter(r => r.status === 'warn').length;
+  const errCount = _bulkImportRows.filter(r => r.status === 'error').length;
+  const checkedCount = _bulkImportRows.filter(r => r.checked).length;
+
+  summaryEl.textContent = `${_bulkImportRows.length} filas leídas · ${okCount} listas · ${warnCount} con advertencia · ${errCount} con error (no se importarán)`;
+
+  body.innerHTML = _bulkImportRows.map((row, idx) => {
+    const d = row.data;
+    const badge = row.status === 'ok'
+      ? '<span class="badge badge-green">OK</span>'
+      : row.status === 'warn'
+        ? `<span class="badge badge-yellow" title="${escapeHtml(row.reason)}">${escapeHtml(row.reason)}</span>`
+        : `<span class="badge badge-red" title="${escapeHtml(row.reason)}">${escapeHtml(row.reason)}</span>`;
+    return `<tr>
+      <td><input type="checkbox" ${row.checked?'checked':''} ${row.status==='error'?'disabled':''} onclick="toggleBulkImportRow(${idx})"></td>
+      <td class="mono">${idx + 1}</td>
+      <td class="mono">${escapeHtml(d.ticket || '—')}</td>
+      <td class="mono">${escapeHtml(d.fecha || '—')}</td>
+      <td>${escapeHtml(d._sheet || '—')}</td>
+      <td>${escapeHtml(d.tipo || '—')}</td>
+      <td>${escapeHtml(d.status || '—')}</td>
+      <td>${badge}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.style.display = _bulkImportRows.length > 0 ? '' : 'none';
+  submitBtn.style.display = _bulkImportRows.length > 0 ? '' : 'none';
+  submitBtn.disabled = checkedCount === 0;
+  submitBtn.textContent = checkedCount > 0 ? `Importar ${checkedCount} registro${checkedCount===1?'':'s'}` : 'Importar';
+}
+
+async function executeBulkImport() {
+  const errEl = document.getElementById('bulk-import-error');
+  errEl.style.display = 'none';
+  const toImport = _bulkImportRows.filter(r => r.checked);
+  if (toImport.length === 0) return;
+
+  const submitBtn = document.getElementById('bulk-import-submit-btn');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Importando…';
+
+  try {
+    const rows = toImport.map(r => recordToSbRow({ ...r.data, owner_id: CURRENT_USER ? CURRENT_USER.id : null }));
+    await sbRequest('POST', 'rfcs', rows);
+    showToast(`${rows.length} RFCs importados correctamente`, 'success');
+    closeBulkImportModal();
+    loadFromSheets();
+  } catch(e) {
+    errEl.textContent = 'Error importando: ' + e.message;
+    errEl.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = `Importar ${toImport.length} registros`;
+  }
+}
+
+// ============================================================
 // EXPORT CSV
 // ============================================================
 function exportVOBOcsv() {
@@ -3734,7 +3967,7 @@ async function onbFinish() {
     const data = await sbRequest('GET', `tqs_users?id=eq.${window._onbUserId}&limit=1`);
     const user = data && data[0];
     saveSession(user);
-    onLoginSuccess(user);
+    onLoginSuccess(user, true);
 
   } catch(e) {
     errEl.textContent = 'Error: ' + e.message;
@@ -3744,11 +3977,18 @@ async function onbFinish() {
 }
 
 // ── Post-login ─────────────────────────────────────────────────
-function onLoginSuccess(user) {
+function onLoginSuccess(user, isFirstLogin) {
   hideAuthOverlay();
   applyUserContext(user);
   loadFromSheets();
   showToast(`Bienvenido, ${user.nombre}`, 'success');
+  if (isFirstLogin && user.rol === 'tqs_leader') {
+    setTimeout(() => {
+      if (confirm('¿Quieres cargar tu histórico de RFCs desde un archivo Excel ahora?\n\nPuedes hacerlo en cualquier momento después desde el menú de tu usuario.')) {
+        showBulkImportModal();
+      }
+    }, 700);
+  }
 }
 
 function applyUserContext(user) {
@@ -3804,7 +4044,7 @@ function applyRoleRestrictions(rol) {
   // FTE y Dirección: solo lectura
   if (rol === 'fte' || rol === 'director') {
     // Ocultar botones de edición y creación
-    document.querySelectorAll('#nav-nuevo, #nav-nueva-solicitud, .btn-primary, .status-edit-btn, #gs-reload-btn').forEach(el => {
+    document.querySelectorAll('#nav-nuevo, #nav-nueva-solicitud, .btn-primary, .status-edit-btn, #gs-reload-btn, #btn-bulk-import').forEach(el => {
       if (el) el.style.display = 'none';
     });
     const _s = document.createElement('style');
@@ -5408,6 +5648,46 @@ init();
       </div>
       <div id="nu-error" class="auth-error"></div>
       <button class="auth-btn" aria-label="Crear nuevo usuario en el sistema" onclick="createNewUser()">Crear Usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CARGA MASIVA DE RFCs DESDE EXCEL -->
+<div id="modal-bulk-import" class="modal-overlay">
+  <div class="modal" style="max-width:900px">
+    <div class="modal-header">
+      <div class="modal-title">Cargar RFCs desde Excel</div>
+      <button class="modal-close" aria-label="Cerrar" onclick="closeBulkImportModal()">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px;max-height:75vh;overflow-y:auto">
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+        <div style="font-weight:600;margin-bottom:6px">1. Descarga la plantilla</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Trae las columnas en el orden correcto y una hoja con tus sistemas asignados como referencia.</div>
+        <button class="btn btn-ghost btn-sm" aria-label="Descargar plantilla Excel" onclick="downloadRfcTemplate()">Descargar plantilla (.xlsx)</button>
+      </div>
+
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:14px">
+        <div style="font-weight:600;margin-bottom:6px">2. Sube tu archivo lleno</div>
+        <input type="file" id="bulk-import-file" accept=".xlsx,.xls" style="display:none" onchange="handleBulkImportFile(event)">
+        <button class="btn btn-primary btn-sm" aria-label="Elegir archivo Excel" onclick="document.getElementById('bulk-import-file').click()">Elegir archivo…</button>
+        <span id="bulk-import-filename" style="font-size:12px;color:var(--text3);margin-left:10px"></span>
+      </div>
+
+      <div id="bulk-import-preview-wrap" style="display:none">
+        <div id="bulk-import-summary" style="font-size:13px;margin-bottom:10px;font-weight:600"></div>
+        <div class="table-wrap"><div class="table-scroll" style="max-height:320px">
+          <table>
+            <thead><tr>
+              <th></th><th>#</th><th>Ticket</th><th>Fecha</th><th>Sistema</th><th>Tipo</th><th>Status</th><th>Estado</th>
+            </tr></thead>
+            <tbody id="bulk-import-preview-body"></tbody>
+          </table>
+        </div></div>
+      </div>
+
+      <div id="bulk-import-error" class="auth-error"></div>
+      <button class="auth-btn" id="bulk-import-submit-btn" style="display:none" aria-label="Importar registros seleccionados" onclick="executeBulkImport()">Importar</button>
     </div>
   </div>
 </div>
