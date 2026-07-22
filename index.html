@@ -5180,7 +5180,7 @@ let _dirRange='mes', _dirRecords=[], _dirBarHover=-1, _dirBarProg=1;
 const DIR_CAT=['#00BEFE','#FF8A4C','#7CE06B','#9B7CF0','#FF6B9D','#6C7F9E'];
 const _dirEase=t=>1-Math.pow(1-t,3), _dirLerp=(a,b,t)=>a+(b-a)*t;
 const _dirRM=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
-function _dirFit(cv,h){const dpr=Math.min(devicePixelRatio||1,2);const w=cv.clientWidth||600;cv.width=w*dpr;cv.height=h*dpr;const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);return {c,w,h};}
+function _dirFit(cv,h){const dpr=Math.min(devicePixelRatio||1,2);const w=cv.clientWidth||600;cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.width='100%';cv.style.height=h+'px';const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);return {c,w,h};}
 function _dirCountUp(el,to,suf){const from=parseFloat(el.dataset.v||'0');const t0=performance.now();el.dataset.v=to;
   (function f(t){let p=Math.min(1,(t-t0)/900);if(_dirRM())p=1;const v=_dirLerp(from,to,_dirEase(p));el.textContent=(Number.isInteger(to)?Math.round(v):v.toFixed(0))+(suf||'');if(p<1)requestAnimationFrame(f);})(performance.now());}
 function dirCountUpKpis(){document.querySelectorAll('#direccion-kpi-grid .kpi-value').forEach(el=>{const m=(el.textContent||'').match(/-?[\d.]+/);if(!m)return;const to=parseFloat(m[0]);const suf=el.textContent.replace(m[0],'');el.dataset.v=0;el.textContent='0'+suf;_dirCountUp(el,to,suf);});}
@@ -5219,7 +5219,8 @@ function _trunc(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
 function _roundRect(c,x,y,w,h,r){r=Math.max(0,Math.min(r,w/2,h/2));c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 function cineVBars(cv,S){
   if(!cv)return;const t0=performance.now();cv._S=S;if(cv._hv==null)cv._hv=-1;
-  function draw(prog){const n=S.vol.length;const {c,w,h}=_dirFit(cv,cv.getAttribute('height')*1||330);
+  const LH=+(cv.dataset.h||(cv.dataset.h=cv.getAttribute('height')||'330'));
+  function draw(prog){const n=S.vol.length;const {c,w,h}=_dirFit(cv,LH);
     const padL=38,padR=16,padT=22,padB=38,DEP=13,pw=w-padL-padR,ph=h-padT-padB,base=padT+ph;
     const max=Math.max(1,...S.vol)*1.18,step=pw/Math.max(1,n),bw=Math.min(46,step*0.52);c.clearRect(0,0,w,h);
     const mono=getComputedStyle(document.body).getPropertyValue('--mono'),sans=getComputedStyle(document.body).getPropertyValue('--font');
