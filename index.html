@@ -2489,6 +2489,7 @@ function bucketStatus(s){
 function niceMax(v){ if(v<=5)return 5; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; const s=n<=1?1:n<=2?2:n<=5?5:10; return s*p; }
 function barTopPath(x,y,w,h,r){ r=Math.max(0,Math.min(r,w/2,h)); return 'M'+x+' '+(y+h)+' L'+x+' '+(y+r)+' Q'+x+' '+y+' '+(x+r)+' '+y+' L'+(x+w-r)+' '+y+' Q'+(x+w)+' '+y+' '+(x+w)+' '+(y+r)+' L'+(x+w)+' '+(y+h)+' Z'; }
 function barEndPath(x,y,w,h,r){ r=Math.max(0,Math.min(r,w,h/2)); return 'M'+x+' '+y+' L'+(x+w-r)+' '+y+' Q'+(x+w)+' '+y+' '+(x+w)+' '+(y+r)+' L'+(x+w)+' '+(y+h-r)+' Q'+(x+w)+' '+(y+h)+' '+(x+w-r)+' '+(y+h)+' L'+x+' '+(y+h)+' Z'; }
+function roundedRectLR(x,y,w,h,rl,rr){ rl=Math.max(0,Math.min(rl,w/2,h/2)); rr=Math.max(0,Math.min(rr,w/2,h/2)); return 'M'+(x+rl)+' '+y+' L'+(x+w-rr)+' '+y+' Q'+(x+w)+' '+y+' '+(x+w)+' '+(y+rr)+' L'+(x+w)+' '+(y+h-rr)+' Q'+(x+w)+' '+(y+h)+' '+(x+w-rr)+' '+(y+h)+' L'+(x+rl)+' '+(y+h)+' Q'+x+' '+(y+h)+' '+x+' '+(y+h-rl)+' L'+x+' '+(y+rl)+' Q'+x+' '+y+' '+(x+rl)+' '+y+' Z'; }
 
 function renderExecCharts(data){
   const el=document.getElementById('exec-charts');
@@ -5096,7 +5097,7 @@ function renderDonutChart(perTqs, total) {
     const colorVar = t.id === '__otros__' ? 'var(--text4)' : `var(--direccion-cat-${i + 1})`;
     return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
       <span style="width:11px;height:11px;border-radius:3px;background:${colorVar};flex-shrink:0"></span>
-      <span style="color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(t.nombre)}</span>
+      <span style="color:var(--text);flex:1;min-width:0;line-height:1.2">${escapeHtml(t.nombre)}</span>
       <span class="mono" style="color:var(--text3)">${t.total} · ${pct}%</span>
     </div>`;
   }).join('');
@@ -5116,78 +5117,74 @@ function renderDonutChart(perTqs, total) {
 function renderMonthlyTrendChart(monthly) {
   const el = document.getElementById('direccion-trend-wrap');
   if (monthly.length === 0) {
-    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin historial suficiente todavía</p></div>';
+    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin historial suficiente todavia</p></div>';
     return;
   }
-
-  const maxTotal = Math.max(1, ...monthly.map(m => m.total));
-  const chartH = 190;
   const legend = DIRECCION_STATUS_SERIES.map(s =>
-    `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--text2)">
-      <span style="width:9px;height:9px;border-radius:2px;background:${s.color};display:inline-block"></span>${s.label}
-    </span>`
+    '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:'+s.color+';display:inline-block"></span>'+s.label+'</span>'
   ).join('');
-
-  const cols = monthly.map(m => {
-    const colH = (m.total / maxTotal) * chartH;
-    const segs = DIRECCION_STATUS_SERIES
-      .filter(s => m[s.key] > 0)
-      .map((s, i, arr) => {
-        const segH = (m[s.key] / m.total) * colH;
-        const isTop = i === arr.length - 1;
-        return `<div title="${escapeHtml(direccionMonthLabel(m.month))} · ${escapeHtml(s.label)}: ${m[s.key]}"
-          style="height:${segH}px;background:${s.color};${isTop ? 'border-radius:4px 4px 0 0' : ''}"></div>`;
-      }).join('');
-    return `<div style="flex:1;display:flex;flex-direction:column-reverse;gap:2px;height:${chartH}px;min-width:0">${segs}</div>`;
-  }).join('');
-
-  const labels = monthly.map(m =>
-    `<div style="flex:1;text-align:center;font-size:10px;color:var(--text3);font-family:var(--mono)">${escapeHtml(direccionMonthLabel(m.month))}</div>`
-  ).join('');
-
-  el.innerHTML = `
-    <div style="margin-bottom:12px">${legend}</div>
-    <div style="display:flex;align-items:flex-end;gap:8px;border-bottom:1px solid var(--border)">${cols}</div>
-    <div style="display:flex;gap:8px;margin-top:6px">${labels}</div>`;
+  const W=720,H=248,L=32,R=14,T=20,B=28, pw=W-L-R, ph=H-T-B, GAP=2;
+  const nm=niceMax(Math.max.apply(null,monthly.map(m=>m.total)));
+  const step=pw/monthly.length, bw=Math.min(44,step*0.62);
+  const yOf=v=>T+ph-(v/nm)*ph;
+  let g='';
+  for(let k=0;k<=4;k++){ const val=nm*k/4, y=yOf(val); g+='<line class="grid-line" x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'"/><text class="axis-txt" x="'+(L-6)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end">'+Math.round(val)+'</text>'; }
+  let cols='';
+  monthly.forEach((m,i)=>{
+    const bx=L+step*i+(step-bw)/2;
+    const present=DIRECCION_STATUS_SERIES.filter(s=>m[s.key]>0);
+    let yb=T+ph;
+    present.forEach((s,j)=>{
+      const segH=(m[s.key]/nm)*ph, yt=yb-segH, drawBottom=yb-(j>0?GAP:0), drawH=Math.max(1,drawBottom-yt), isTop=j===present.length-1;
+      const ttl='<title>'+escapeHtml(direccionMonthLabel(m.month))+' · '+escapeHtml(s.label)+': '+m[s.key]+'</title>';
+      cols+= isTop
+        ? '<path class="bar" d="'+barTopPath(bx,yt,bw,drawH,4)+'" fill="'+s.color+'">'+ttl+'</path>'
+        : '<rect class="bar" x="'+bx.toFixed(1)+'" y="'+yt.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+drawH.toFixed(1)+'" fill="'+s.color+'">'+ttl+'</rect>';
+      yb=yt;
+    });
+    const colTop=yOf(m.total);
+    if(m.total>0) cols+='<text class="val-txt" x="'+(bx+bw/2).toFixed(1)+'" y="'+(colTop-6).toFixed(1)+'" text-anchor="middle" font-size="10.5">'+m.total+'</text>';
+    cols+='<text class="axis-txt" x="'+(bx+bw/2).toFixed(1)+'" y="'+(H-9)+'" text-anchor="middle">'+escapeHtml(direccionMonthLabel(m.month))+'</text>';
+  });
+  el.innerHTML='<div style="margin-bottom:10px">'+legend+'</div><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Tendencia mensual por resultado">'+g+cols+'</svg>';
 }
 
 // ── Barras apiladas horizontales "Desempeño por TQS" ──
+
 function renderTqsPerformanceChart(perTqs) {
   const el = document.getElementById('direccion-tqs-chart');
   const withData = perTqs.filter(t => t.total > 0);
   if (withData.length === 0) {
-    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin datos de TQS todavía</p></div>';
+    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin datos de TQS todavia</p></div>';
     return;
   }
-
   const legend = DIRECCION_STATUS_SERIES.map(s =>
-    `<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--text2)">
-      <span style="width:9px;height:9px;border-radius:2px;background:${s.color};display:inline-block"></span>${s.label}
-    </span>`
+    '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:'+s.color+';display:inline-block"></span>'+s.label+'</span>'
   ).join('');
-
-  const maxTotal = Math.max(1, ...withData.map(t => t.total));
-  const rows = withData.map(t => {
-    const pct = Math.round(t.exito / t.total * 100);
-    const barW = (t.total / maxTotal) * 100;
-    const segs = DIRECCION_STATUS_SERIES
-      .filter(s => t[s.key] > 0)
-      .map((s, i, arr) => {
-        const segW = (t[s.key] / t.total) * 100;
-        const isEnd = i === arr.length - 1;
-        return `<div title="${escapeHtml(t.nombre)} · ${escapeHtml(s.label)}: ${t[s.key]}"
-          style="width:${segW}%;background:${s.color};${isEnd ? 'border-radius:0 4px 4px 0' : ''}"></div>`;
-      }).join('');
-    return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
-      <div style="width:140px;flex-shrink:0;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(t.nombre)}">${escapeHtml(t.nombre)}</div>
-      <div style="flex:1;display:flex;height:18px;border-radius:4px;overflow:hidden;background:var(--surface2);gap:2px">
-        <div style="display:flex;width:${barW}%;gap:2px">${segs}</div>
-      </div>
-      <div class="mono" style="width:44px;flex-shrink:0;text-align:right;font-size:12px;font-weight:600;color:var(--text)">${pct}%</div>
-    </div>`;
-  }).join('');
-
-  el.innerHTML = `<div style="margin-bottom:14px">${legend}</div>${rows}`;
+  const W=720, rowH=36, padT=4, padB=4, L=146, R=52, barMax=W-L-R, GAP=2, bh=16;
+  const maxTotal=Math.max.apply(null,withData.map(t=>t.total));
+  const H=padT+padB+withData.length*rowH;
+  let out='';
+  withData.forEach((t,i)=>{
+    const cy=padT+i*rowH+rowH/2, by=cy-bh/2, pct=Math.round(t.exito/t.total*100);
+    const w=Math.max(3,(t.total/maxTotal)*barMax);
+    const nm2=t.nombre.length>20?t.nombre.slice(0,19)+'…':t.nombre;
+    out+='<g class="hbar-row"><title>'+escapeHtml(t.nombre)+': '+t.total+' RFC · '+pct+'% exito</title>';
+    out+='<text class="hbar-name" x="0" y="'+(cy+4).toFixed(1)+'">'+escapeHtml(nm2)+'</text>';
+    out+='<rect x="'+L+'" y="'+by.toFixed(1)+'" width="'+barMax+'" height="'+bh+'" rx="5" fill="var(--surface3)"/>';
+    const present=DIRECCION_STATUS_SERIES.filter(s=>t[s.key]>0);
+    let xc=L;
+    present.forEach((s,j)=>{
+      const segW=(t[s.key]/t.total)*w, isFirst=j===0, isEnd=j===present.length-1;
+      const drawW=Math.max(1,segW-(isEnd?0:GAP));
+      const rl=isFirst?5:0, rr=isEnd?5:0;
+      out+='<path d="'+roundedRectLR(xc,by,drawW,bh,rl,rr)+'" fill="'+s.color+'"><title>'+escapeHtml(s.label)+': '+t[s.key]+'</title></path>';
+      xc+=segW;
+    });
+    out+='<text class="hbar-val" x="'+(L+barMax+8).toFixed(1)+'" y="'+(cy+4).toFixed(1)+'">'+pct+'%</text>';
+    out+='</g>';
+  });
+  el.innerHTML='<div style="margin-bottom:12px">'+legend+'</div><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Desempeno por TQS">'+out+'</svg>';
 }
 
 async function renderDireccionPage() {
