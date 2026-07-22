@@ -504,6 +504,73 @@ body.theme-dark .page-btn.active{background:var(--accent);border-color:var(--acc
 .hbar-name{fill:var(--text2);font-family:var(--font);font-size:12px;font-weight:600}
 .hbar-val{fill:var(--text);font-family:var(--font);font-size:12px;font-weight:700}
 .chart-empty{padding:34px 12px;text-align:center;color:var(--text3);font-size:12px}
+
+/* ═══════════ PANEL EJECUTIVO — modo cinematográfico (dark-committed) ═══════════ */
+#page-direccion{
+  --surface:rgba(20,34,60,0.55); --surface2:rgba(28,44,74,0.6); --surface3:rgba(120,160,220,.09);
+  --border:rgba(120,165,230,0.14); --border2:rgba(120,165,230,0.22);
+  --text:#EAF1FB; --text2:#9DB4D6; --text3:#5F76A0; --text4:#3a4d70;
+  --accent2:#7CFFE6;
+  margin:-26px -28px -60px; padding:26px 28px 60px; min-height:calc(100vh - 62px);
+  background:
+    radial-gradient(85% 55% at 50% -6%, rgba(0,150,255,.14), transparent 60%),
+    radial-gradient(60% 45% at 82% 26%, rgba(255,120,60,.09), transparent 60%),
+    radial-gradient(55% 55% at 10% 92%, rgba(70,230,200,.07), transparent 60%),
+    linear-gradient(180deg,#0A1526 0%, #070d18 100%);
+}
+#page-direccion .page-header h1{color:#EAF1FB}
+#page-direccion .tag{background:rgba(0,190,254,.12);color:#7CFFE6;border:1px solid rgba(0,190,254,.25)}
+/* KPI cinematic */
+#page-direccion .kpi-grid{grid-template-columns:repeat(5,1fr)}
+#page-direccion .kpi-card{background:rgba(20,34,60,0.55);border:1px solid rgba(120,165,230,0.14);
+  backdrop-filter:blur(14px);box-shadow:0 18px 50px rgba(2,8,20,.5),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
+#page-direccion .kpi-card::after{content:'';position:absolute;right:-28px;top:-28px;width:110px;height:110px;border-radius:50%;
+  background:var(--kpi-color,#00BEFE);filter:blur(34px);opacity:.32;pointer-events:none}
+#page-direccion .kpi-value{color:#EAF1FB;font-family:var(--mono);font-weight:600}
+#page-direccion .kpi-label{color:#7C90B4}
+/* filtro segmentado */
+.cine-seg{display:inline-flex;padding:4px;gap:2px;background:rgba(20,34,60,0.6);border:1px solid rgba(120,165,230,0.16);border-radius:12px;backdrop-filter:blur(12px)}
+.cine-seg button{appearance:none;border:0;background:transparent;color:#9DB4D6;font-family:var(--font);font-size:12.5px;font-weight:650;padding:7px 15px;border-radius:9px;cursor:pointer;transition:.25s}
+.cine-seg button:hover{color:#EAF1FB}
+.cine-seg button.on{color:#04101f;background:linear-gradient(135deg,#7CFFE6,#00BEFE);box-shadow:0 4px 16px rgba(0,190,254,.4)}
+.cine-seg button:focus-visible{outline:2px solid #7CFFE6;outline-offset:2px}
+/* cine cards + layout */
+.cine-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:20px;margin-top:22px}
+.cine-stack{display:flex;flex-direction:column;gap:20px}
+.cine-card{position:relative;background:rgba(20,34,60,0.5);border:1px solid rgba(120,165,230,0.14);border-radius:18px;
+  padding:20px 22px;backdrop-filter:blur(16px);box-shadow:0 20px 60px rgba(2,8,20,.5),inset 0 1px 0 rgba(255,255,255,.05);overflow:hidden}
+.cine-card::before{content:'';position:absolute;inset:0;border-radius:18px;pointer-events:none;background:radial-gradient(120% 80% at 50% -20%,rgba(255,255,255,.05),transparent 55%)}
+.cine-card.full{margin-top:20px}
+.cine-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px;position:relative}
+.cine-h h3{font-size:14px;font-weight:750;letter-spacing:.3px;color:#EAF1FB}
+.cine-h .k{font-size:11px;color:#5F76A0;font-weight:600}
+.cine-cv{position:relative;width:100%}
+.cine-cv canvas{display:block;width:100%}
+.cine-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.cine-center .big{font-family:var(--mono);font-weight:600;letter-spacing:-1px;color:#EAF1FB}
+.cine-center .cap{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#5F76A0;margin-top:2px;font-weight:700}
+.cine-legend{display:flex;flex-direction:column;gap:9px}
+.cine-legend .lg{display:flex;align-items:center;gap:10px;font-size:12.5px}
+.cine-legend .dot{width:11px;height:11px;border-radius:4px;flex-shrink:0;box-shadow:0 0 10px currentColor}
+.cine-legend .nm{color:#9DB4D6;flex:1;min-width:0;line-height:1.2}
+.cine-legend .vl{font-family:var(--mono);font-weight:600;color:#EAF1FB}
+.cine-legend .pc{font-family:var(--mono);color:#5F76A0;width:42px;text-align:right;font-size:11.5px}
+.cine-tqs{display:flex;flex-direction:column;gap:15px;margin-top:8px}
+.cine-trow{display:grid;grid-template-columns:150px 1fr 50px;align-items:center;gap:14px}
+.cine-trow .nm{font-size:13px;font-weight:600;color:#EAF1FB;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cine-track{position:relative;height:16px;border-radius:9px;background:rgba(120,160,220,.09);overflow:hidden}
+.cine-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:9px;transition:width 1.1s cubic-bezier(.22,1,.36,1);
+  background:linear-gradient(90deg,#2C7D5B,#57D98A);box-shadow:0 0 16px rgba(87,217,138,.5)}
+.cine-trow:hover .cine-fill{filter:brightness(1.14)}
+.cine-trow .pc{font-family:var(--mono);font-weight:700;font-size:13px;text-align:right;color:#57D98A}
+.cine-tip{position:fixed;z-index:9990;pointer-events:none;opacity:0;transform:translate(-50%,-118%);transition:opacity .12s;
+  background:rgba(8,16,30,.94);border:1px solid rgba(120,165,230,0.22);border-radius:10px;padding:8px 11px;font-size:12px;color:#EAF1FB;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);white-space:nowrap;backdrop-filter:blur(6px)}
+.cine-tip b{font-family:var(--mono);font-weight:600}
+.cine-tip .m{color:#5F76A0;font-size:10.5px}
+#page-direccion details summary{color:#5F76A0}
+#page-direccion .form-label{color:#7C90B4}
+@media(max-width:900px){.cine-grid{grid-template-columns:1fr}#page-direccion .kpi-grid{grid-template-columns:repeat(2,1fr)}.cine-trow{grid-template-columns:110px 1fr 46px}}
 @media(max-width:900px){.exec-charts{grid-template-columns:1fr}}
 
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -1062,26 +1129,44 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
     <div class="page" id="page-direccion">
       <div class="page-header">
         <h1>Panel Ejecutivo <span class="tag" id="direccion-total-tag">0 registros</span></h1>
+        <div class="cine-seg" id="dir-seg" role="tablist" aria-label="Rango">
+          <button class="on" data-k="mes" role="tab">Mensual</button>
+          <button data-k="tri" role="tab">Trimestral</button>
+          <button data-k="ano" role="tab">Anual</button>
+        </div>
       </div>
 
       <div class="kpi-grid" id="direccion-kpi-grid"></div>
 
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:20px;margin-top:24px;align-items:start">
-        <div>
-          <div class="page-header" style="margin-bottom:12px"><h1 style="font-size:15px">Carga de trabajo por TQS</h1></div>
-          <div id="direccion-donut-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px"></div>
+      <div class="cine-grid">
+        <div class="cine-card">
+          <div class="cine-h"><h3>Volumen de RFCs</h3><span class="k" id="dir-bars-k">línea = % éxito</span></div>
+          <div class="cine-cv"><canvas id="dir-bars" height="340"></canvas></div>
         </div>
-        <div>
-          <div class="page-header" style="margin-bottom:12px"><h1 style="font-size:15px">Tendencia mensual</h1></div>
-          <div id="direccion-trend-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px"></div>
+        <div class="cine-stack">
+          <div class="cine-card">
+            <div class="cine-h"><h3>% Éxito global</h3><span class="k">meta 95%</span></div>
+            <div class="cine-cv" style="max-width:260px;margin:0 auto"><canvas id="dir-gauge" height="200"></canvas>
+              <div class="cine-center"><div class="big" id="dir-gauge-num" style="font-size:38px">0%</div><div class="cap">Éxito</div></div>
+            </div>
+          </div>
+          <div class="cine-card">
+            <div class="cine-h"><h3>Carga por TQS</h3><span class="k" id="dir-donut-k">—</span></div>
+            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+              <div class="cine-cv" style="width:150px;flex-shrink:0"><canvas id="dir-donut" height="150"></canvas>
+                <div class="cine-center"><div class="big" id="dir-donut-num" style="font-size:26px">0</div><div class="cap">RFCs</div></div>
+              </div>
+              <div class="cine-legend" id="direccion-donut-legend" style="flex:1;min-width:150px"></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="page-header" style="margin-top:24px;margin-bottom:12px">
-        <h1 style="font-size:15px">Desempeño por TQS</h1>
+      <div class="cine-card full">
+        <div class="cine-h"><h3>Desempeño por TQS</h3><span class="k">% de RFCs finalizados con éxito</span></div>
+        <div id="direccion-tqs-chart"></div>
       </div>
-      <div id="direccion-tqs-chart" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px"></div>
-      <details style="margin-top:10px">
+      <details style="margin-top:12px">
         <summary style="cursor:pointer;font-size:11px;color:var(--text3);font-family:var(--mono);letter-spacing:1px;user-select:none">VER TABLA DE NÚMEROS EXACTOS</summary>
         <div id="direccion-tqs-table" style="margin-top:10px"></div>
       </details>
@@ -5063,128 +5148,106 @@ function direccionMonthLabel(ym) {
 }
 
 // ── Donut "Carga de trabajo por TQS" — SVG a mano, sin librería ──
-function renderDonutChart(perTqs, total) {
-  const el = document.getElementById('direccion-donut-wrap');
-  if (total === 0 || perTqs.length === 0) {
-    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin RFCs registrados todavía</p></div>';
-    return;
+// ═══════════ Panel Ejecutivo cinematografico — helpers ═══════════
+let _dirRange='mes', _dirRecords=[], _dirBarHover=-1, _dirBarProg=1;
+const DIR_CAT=['#00BEFE','#FF8A4C','#7CE06B','#9B7CF0','#FF6B9D','#6C7F9E'];
+const _dirEase=t=>1-Math.pow(1-t,3), _dirLerp=(a,b,t)=>a+(b-a)*t;
+const _dirRM=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+function _dirFit(cv,h){const dpr=Math.min(devicePixelRatio||1,2);const w=cv.clientWidth||600;cv.width=w*dpr;cv.height=h*dpr;const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);return {c,w,h};}
+function _dirCountUp(el,to,suf){const from=parseFloat(el.dataset.v||'0');const t0=performance.now();el.dataset.v=to;
+  (function f(t){let p=Math.min(1,(t-t0)/900);if(_dirRM())p=1;const v=_dirLerp(from,to,_dirEase(p));el.textContent=(Number.isInteger(to)?Math.round(v):v.toFixed(0))+(suf||'');if(p<1)requestAnimationFrame(f);})(performance.now());}
+function dirCountUpKpis(){document.querySelectorAll('#direccion-kpi-grid .kpi-value').forEach(el=>{const m=(el.textContent||'').match(/-?[\d.]+/);if(!m)return;const to=parseFloat(m[0]);const suf=el.textContent.replace(m[0],'');el.dataset.v=0;el.textContent='0'+suf;_dirCountUp(el,to,suf);});}
+function dirSeries(records,range){
+  const B=[],idx={};const push=(k,l)=>{idx[k]=B.length;B.push({k,l,tot:0,ex:0});};
+  if(range==='ano'){
+    const ys=[...new Set(records.map(r=>(r.fecha||'').slice(0,4)).filter(Boolean))].sort();
+    ys.forEach(y=>push(y,y));
+    records.forEach(r=>{const y=(r.fecha||'').slice(0,4);if(y in idx){B[idx[y]].tot++;if(classifyRfcOutcome(r.status)==='exito')B[idx[y]].ex++;}});
+  } else if(range==='tri'){
+    const now=new Date();
+    for(let i=7;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i*3,1);const q=Math.floor(d.getMonth()/3)+1;push(d.getFullYear()+'-Q'+q,'Q'+q+" '"+String(d.getFullYear()).slice(2));}
+    records.forEach(r=>{const dt=parseDate(r.fecha);if(!dt)return;const q=Math.floor(dt.getMonth()/3)+1;const k=dt.getFullYear()+'-Q'+q;if(k in idx){B[idx[k]].tot++;if(classifyRfcOutcome(r.status)==='exito')B[idx[k]].ex++;}});
+  } else {
+    const base=new Date();base.setDate(1);
+    for(let i=11;i>=0;i--){const d=new Date(base.getFullYear(),base.getMonth()-i,1);push(d.getFullYear()+'-'+d.getMonth(),MONTHS_ES[d.getMonth()]+((d.getMonth()===0||i===11)?" '"+String(d.getFullYear()).slice(2):''));}
+    records.forEach(r=>{const dt=parseDate(r.fecha);if(!dt)return;const k=dt.getFullYear()+'-'+dt.getMonth();if(k in idx){B[idx[k]].tot++;if(classifyRfcOutcome(r.status)==='exito')B[idx[k]].ex++;}});
   }
-
-  // Soft cap de 5 slots categóricos — el resto se pliega en "Otros"
-  const top = perTqs.filter(t => t.total > 0).slice(0, 5);
-  const restTotal = perTqs.slice(5).reduce((s, t) => s + t.total, 0);
-  const slices = restTotal > 0 ? [...top, { nombre: 'Otros', total: restTotal, id: '__otros__' }] : top;
-
-  const r = 60, cx = 80, cy = 80, strokeW = 26, gapPx = 3;
-  const circumference = 2 * Math.PI * r;
-  let cumulative = 0;
-  const arcs = slices.map((t, i) => {
-    const frac = t.total / total;
-    const arcLen = frac * circumference;
-    const dash = Math.max(arcLen - gapPx, 0.001);
-    const offset = -cumulative;
-    cumulative += arcLen;
-    const colorVar = t.id === '__otros__' ? 'var(--text4)' : `var(--direccion-cat-${i + 1})`;
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colorVar}" stroke-width="${strokeW}"
-      stroke-dasharray="${dash.toFixed(2)} ${(circumference - dash).toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
-      stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})">
-      <title>${escapeHtml(t.nombre)}: ${t.total} RFC${t.total===1?'':'s'} (${Math.round(frac*100)}%)</title>
-    </circle>`;
-  }).join('');
-
-  const legend = slices.map((t, i) => {
-    const pct = Math.round(t.total / total * 100);
-    const colorVar = t.id === '__otros__' ? 'var(--text4)' : `var(--direccion-cat-${i + 1})`;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
-      <span style="width:11px;height:11px;border-radius:3px;background:${colorVar};flex-shrink:0"></span>
-      <span style="color:var(--text);flex:1;min-width:0;line-height:1.2">${escapeHtml(t.nombre)}</span>
-      <span class="mono" style="color:var(--text3)">${t.total} · ${pct}%</span>
-    </div>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
-      <svg viewBox="0 0 160 160" style="width:160px;height:160px;flex-shrink:0">
-        ${arcs}
-        <text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)" font-family="var(--font)">${total}</text>
-        <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="9" fill="var(--text3)" font-family="var(--font)">RFCs totales</text>
-      </svg>
-      <div style="flex:1;min-width:180px">${legend}</div>
-    </div>`;
+  return {xl:B.map(b=>b.l),vol:B.map(b=>b.tot),suc:B.map(b=>b.tot?Math.round(b.ex/b.tot*100):0)};
+}
+function _dirTip(){let el=document.getElementById('dir-tip');if(!el){el=document.createElement('div');el.id='dir-tip';el.className='cine-tip';document.body.appendChild(el);}return el;}
+function renderDirGauge(exito,total){
+  const cv=document.getElementById('dir-gauge');if(!cv)return;const val=total>0?Math.round(exito/total*100):0;
+  const t0=performance.now();const num=document.getElementById('dir-gauge-num');
+  (function f(t){const p=_dirRM()?1:Math.min(1,(t-t0)/1100);const {c,w,h}=_dirFit(cv,200);
+    const cx=w/2,cy=h*0.92,r=Math.min(w,h*1.7)/2-16,A0=Math.PI*0.75,A1=Math.PI*2.25;c.clearRect(0,0,w,h);c.lineCap='round';
+    c.strokeStyle='rgba(120,160,220,.12)';c.lineWidth=14;c.beginPath();c.arc(cx,cy,r,A0,A1);c.stroke();
+    const cur=A0+(A1-A0)*(val/100)*_dirEase(p);const g=c.createLinearGradient(cx-r,0,cx+r,0);g.addColorStop(0,'#00BEFE');g.addColorStop(1,'#7CE06B');
+    c.save();if(!_dirRM()){c.shadowColor='rgba(0,190,254,.6)';c.shadowBlur=18;}c.strokeStyle=g;c.lineWidth=14;c.beginPath();c.arc(cx,cy,r,A0,cur);c.stroke();c.restore();
+    c.save();if(!_dirRM()){c.shadowColor='#7CE06B';c.shadowBlur=14;}c.fillStyle='#7CE06B';c.beginPath();c.arc(cx+Math.cos(cur)*r,cy+Math.sin(cur)*r,6.5,0,7);c.fill();c.restore();
+    if(num)num.textContent=Math.round(val*_dirEase(p))+'%';if(p<1)requestAnimationFrame(f);})(performance.now());
+}
+function renderDonutChart(perTqs, total){
+  const cv=document.getElementById('dir-donut');if(!cv)return;
+  const top=perTqs.filter(x=>x.total>0).slice(0,5);
+  const rest=perTqs.slice(5).reduce((s,x)=>s+x.total,0);
+  const segs=rest>0?[...top,{nombre:'Otros',total:rest}]:top;
+  const k=document.getElementById('dir-donut-k');if(k)k.textContent=total+' RFCs';
+  const legEl=document.getElementById('direccion-donut-legend');
+  if(!total||!segs.length){cv.getContext('2d').clearRect(0,0,cv.width,cv.height);if(legEl)legEl.innerHTML='<div class="chart-empty">Sin RFCs</div>';return;}
+  if(legEl)legEl.innerHTML=segs.map((s,i)=>{const c=DIR_CAT[i%DIR_CAT.length];const pc=Math.round(s.total/total*100);
+    return '<div class="lg"><span class="dot" style="background:'+c+';color:'+c+'"></span><span class="nm">'+escapeHtml(s.nombre)+'</span><span class="vl">'+s.total+'</span><span class="pc">'+pc+'%</span></div>';}).join('');
+  const numEl=document.getElementById('dir-donut-num');const t0=performance.now();
+  (function f(t){const p=_dirRM()?1:Math.min(1,(t-t0)/1000);const e=_dirEase(p);const {c,w,h}=_dirFit(cv,150);
+    const cx=w/2,cy=h/2,r=54,lw=20;c.clearRect(0,0,w,h);let a=-Math.PI/2;const gap=0.05;
+    segs.forEach((s,i)=>{const frac=s.total/total;const a2=a+frac*Math.PI*2*e;const col=DIR_CAT[i%DIR_CAT.length];
+      c.save();if(!_dirRM()){c.shadowColor=col;c.shadowBlur=12;}c.strokeStyle=col;c.lineWidth=lw;c.lineCap='butt';
+      c.beginPath();c.arc(cx,cy,r,a+gap,Math.max(a+gap,a2-gap));c.stroke();c.restore();a=a+frac*Math.PI*2*e;});
+    if(numEl)numEl.textContent=Math.round(total*e);if(p<1)requestAnimationFrame(f);})(performance.now());
 }
 
-// ── Barras apiladas verticales "Tendencia mensual" ──
-function renderMonthlyTrendChart(monthly) {
-  const el = document.getElementById('direccion-trend-wrap');
-  if (monthly.length === 0) {
-    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin historial suficiente todavia</p></div>';
-    return;
+function renderMonthlyTrendChart(){
+  const cv=document.getElementById('dir-bars');if(!cv)return;
+  const t0=performance.now();
+  function draw(prog){
+    const S=dirSeries(_dirRecords,_dirRange);const n=S.vol.length;const {c,w,h}=_dirFit(cv,340);
+    const padL=38,padR=16,padT=24,padB=38,DEP=13,pw=w-padL-padR,ph=h-padT-padB,base=padT+ph;
+    const max=Math.max(1,...S.vol)*1.18,step=pw/Math.max(1,n),bw=Math.min(46,step*0.52);
+    c.clearRect(0,0,w,h);const mono=getComputedStyle(document.body).getPropertyValue('--mono');const sans=getComputedStyle(document.body).getPropertyValue('--font');
+    c.strokeStyle='rgba(120,160,220,.09)';c.lineWidth=1;c.fillStyle='rgba(157,180,214,.5)';c.font='11px '+mono;c.textAlign='right';
+    for(let g=0;g<=4;g++){const gy=base-(g/4)*ph;c.beginPath();c.moveTo(padL,gy);c.lineTo(padL+pw,gy);c.stroke();c.fillText(Math.round(max*g/4),padL-8,gy+4);}
+    c.strokeStyle='rgba(120,160,220,.06)';for(let i=0;i<=n;i++){const x=padL+step*i;c.beginPath();c.moveTo(x,base);c.lineTo(x+DEP,base-DEP);c.stroke();}
+    c.beginPath();c.moveTo(padL+DEP,base-DEP);c.lineTo(padL+pw+DEP,base-DEP);c.stroke();
+    S.vol.forEach((v,i)=>{const bx=padL+step*i+(step-bw)/2;const fh=(v/max)*ph*(_dirRM()?1:Math.min(1,prog*1.4-i*0.04));const H=Math.max(0,fh),top=base-H,hot=i===_dirBarHover;
+      c.fillStyle=hot?'rgba(180,60,20,.95)':'rgba(120,40,14,.9)';c.beginPath();c.moveTo(bx+bw,top);c.lineTo(bx+bw+DEP,top-DEP);c.lineTo(bx+bw+DEP,base-DEP);c.lineTo(bx+bw,base);c.closePath();c.fill();
+      c.fillStyle=hot?'#FFE39A':'#FFCF7C';c.beginPath();c.moveTo(bx,top);c.lineTo(bx+bw,top);c.lineTo(bx+bw+DEP,top-DEP);c.lineTo(bx+DEP,top-DEP);c.closePath();c.fill();
+      const g=c.createLinearGradient(0,top,0,base);g.addColorStop(0,'#FFD27A');g.addColorStop(.5,'#FF8A4C');g.addColorStop(1,'#C22C08');
+      c.save();if(!_dirRM()){c.shadowColor='rgba(255,150,60,.55)';c.shadowBlur=hot?26:14;}c.fillStyle=g;c.fillRect(bx,top,bw,H);c.restore();
+      c.fillStyle='rgba(255,255,255,.35)';c.fillRect(bx,top,bw,1.5);});
+    const tp=_dirRM()?1:Math.min(1,Math.max(0,(prog-0.25)/0.75));
+    const pts=S.suc.map((s,i)=>[padL+step*i+step/2,padT+ph-(s/100)*ph*0.9]);const dn=Math.max(1,Math.floor(pts.length*tp));
+    c.save();c.lineJoin='round';c.lineCap='round';if(!_dirRM()){c.shadowColor='rgba(70,230,200,.8)';c.shadowBlur=16;}c.strokeStyle='#5CF0D6';c.lineWidth=2.6;c.beginPath();
+    pts.slice(0,dn).forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.stroke();c.restore();
+    pts.slice(0,dn).forEach(p=>{c.save();if(!_dirRM()){c.shadowColor='#7CFFE6';c.shadowBlur=12;}c.fillStyle='#0A1526';c.beginPath();c.arc(p[0],p[1],4.5,0,7);c.fill();c.lineWidth=2.2;c.strokeStyle='#7CFFE6';c.stroke();c.restore();});
+    c.fillStyle='rgba(157,180,214,.75)';c.font='11px '+sans;c.textAlign='center';S.xl.forEach((x,i)=>c.fillText(x,padL+step*i+step/2,base+22));
+    if(_dirBarHover>=0&&_dirBarHover<n){const i=_dirBarHover,bx=padL+step*i+(step-bw)/2,H=(S.vol[i]/max)*ph;c.fillStyle='#fff';c.font='700 13px '+mono;c.textAlign='center';c.fillText(S.vol[i],bx+bw/2,base-H-DEP-8);}
+    return S;
   }
-  const legend = DIRECCION_STATUS_SERIES.map(s =>
-    '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:'+s.color+';display:inline-block"></span>'+s.label+'</span>'
-  ).join('');
-  const W=720,H=248,L=32,R=14,T=20,B=28, pw=W-L-R, ph=H-T-B, GAP=2;
-  const nm=niceMax(Math.max.apply(null,monthly.map(m=>m.total)));
-  const step=pw/monthly.length, bw=Math.min(44,step*0.62);
-  const yOf=v=>T+ph-(v/nm)*ph;
-  let g='';
-  for(let k=0;k<=4;k++){ const val=nm*k/4, y=yOf(val); g+='<line class="grid-line" x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'"/><text class="axis-txt" x="'+(L-6)+'" y="'+(y+3.5).toFixed(1)+'" text-anchor="end">'+Math.round(val)+'</text>'; }
-  let cols='';
-  monthly.forEach((m,i)=>{
-    const bx=L+step*i+(step-bw)/2;
-    const present=DIRECCION_STATUS_SERIES.filter(s=>m[s.key]>0);
-    let yb=T+ph;
-    present.forEach((s,j)=>{
-      const segH=(m[s.key]/nm)*ph, yt=yb-segH, drawBottom=yb-(j>0?GAP:0), drawH=Math.max(1,drawBottom-yt), isTop=j===present.length-1;
-      const ttl='<title>'+escapeHtml(direccionMonthLabel(m.month))+' · '+escapeHtml(s.label)+': '+m[s.key]+'</title>';
-      cols+= isTop
-        ? '<path class="bar" d="'+barTopPath(bx,yt,bw,drawH,4)+'" fill="'+s.color+'">'+ttl+'</path>'
-        : '<rect class="bar" x="'+bx.toFixed(1)+'" y="'+yt.toFixed(1)+'" width="'+bw.toFixed(1)+'" height="'+drawH.toFixed(1)+'" fill="'+s.color+'">'+ttl+'</rect>';
-      yb=yt;
-    });
-    const colTop=yOf(m.total);
-    if(m.total>0) cols+='<text class="val-txt" x="'+(bx+bw/2).toFixed(1)+'" y="'+(colTop-6).toFixed(1)+'" text-anchor="middle" font-size="10.5">'+m.total+'</text>';
-    cols+='<text class="axis-txt" x="'+(bx+bw/2).toFixed(1)+'" y="'+(H-9)+'" text-anchor="middle">'+escapeHtml(direccionMonthLabel(m.month))+'</text>';
-  });
-  el.innerHTML='<div style="margin-bottom:10px">'+legend+'</div><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Tendencia mensual por resultado">'+g+cols+'</svg>';
+  cv._series=draw(1);
+  if(!_dirRM()){_dirBarProg=0;(function anim(t){_dirBarProg=Math.min(1,(t-t0)/1000);draw(_dirBarProg);if(_dirBarProg<1)requestAnimationFrame(anim);})(performance.now());}
+  if(!cv._wired){cv._wired=1;
+    cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();const S=cv._series||dirSeries(_dirRecords,_dirRange);const n=S.vol.length;const padL=38,padR=16;const pw=r.width-padL-padR;const step=pw/Math.max(1,n);let idx=Math.floor((e.clientX-r.left-padL)/step);if(idx<0||idx>=n)idx=-1;if(idx!==_dirBarHover){_dirBarHover=idx;draw(1);}
+      const tip=_dirTip();if(idx>=0){tip.style.opacity=1;tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';tip.innerHTML='<div><b>'+S.vol[idx]+'</b> RFCs · <span class="m">'+escapeHtml(S.xl[idx])+'</span></div><div class="m">'+S.suc[idx]+'% éxito</div>';}else tip.style.opacity=0;});
+    cv.addEventListener('mouseleave',()=>{_dirBarHover=-1;draw(1);const tip=document.getElementById('dir-tip');if(tip)tip.style.opacity=0;});}
 }
 
-// ── Barras apiladas horizontales "Desempeño por TQS" ──
-
-function renderTqsPerformanceChart(perTqs) {
-  const el = document.getElementById('direccion-tqs-chart');
-  const withData = perTqs.filter(t => t.total > 0);
-  if (withData.length === 0) {
-    el.innerHTML = '<div class="empty-state"><span class="icon"></span><p>Sin datos de TQS todavia</p></div>';
-    return;
-  }
-  const legend = DIRECCION_STATUS_SERIES.map(s =>
-    '<span style="display:inline-flex;align-items:center;gap:5px;margin-right:14px;font-size:11px;color:var(--text2)"><span style="width:9px;height:9px;border-radius:2px;background:'+s.color+';display:inline-block"></span>'+s.label+'</span>'
-  ).join('');
-  const W=720, rowH=36, padT=4, padB=4, L=146, R=52, barMax=W-L-R, GAP=2, bh=16;
-  const maxTotal=Math.max.apply(null,withData.map(t=>t.total));
-  const H=padT+padB+withData.length*rowH;
-  let out='';
-  withData.forEach((t,i)=>{
-    const cy=padT+i*rowH+rowH/2, by=cy-bh/2, pct=Math.round(t.exito/t.total*100);
-    const w=Math.max(3,(t.total/maxTotal)*barMax);
-    const nm2=t.nombre.length>20?t.nombre.slice(0,19)+'…':t.nombre;
-    out+='<g class="hbar-row"><title>'+escapeHtml(t.nombre)+': '+t.total+' RFC · '+pct+'% exito</title>';
-    out+='<text class="hbar-name" x="0" y="'+(cy+4).toFixed(1)+'">'+escapeHtml(nm2)+'</text>';
-    out+='<rect x="'+L+'" y="'+by.toFixed(1)+'" width="'+barMax+'" height="'+bh+'" rx="5" fill="var(--surface3)"/>';
-    const present=DIRECCION_STATUS_SERIES.filter(s=>t[s.key]>0);
-    let xc=L;
-    present.forEach((s,j)=>{
-      const segW=(t[s.key]/t.total)*w, isFirst=j===0, isEnd=j===present.length-1;
-      const drawW=Math.max(1,segW-(isEnd?0:GAP));
-      const rl=isFirst?5:0, rr=isEnd?5:0;
-      out+='<path d="'+roundedRectLR(xc,by,drawW,bh,rl,rr)+'" fill="'+s.color+'"><title>'+escapeHtml(s.label)+': '+t[s.key]+'</title></path>';
-      xc+=segW;
-    });
-    out+='<text class="hbar-val" x="'+(L+barMax+8).toFixed(1)+'" y="'+(cy+4).toFixed(1)+'">'+pct+'%</text>';
-    out+='</g>';
-  });
-  el.innerHTML='<div style="margin-bottom:12px">'+legend+'</div><svg class="chart-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Desempeno por TQS">'+out+'</svg>';
+function renderTqsPerformanceChart(perTqs){
+  const el=document.getElementById('direccion-tqs-chart');if(!el)return;
+  const wd=perTqs.filter(t=>t.total>0);
+  if(!wd.length){el.innerHTML='<div class="chart-empty">Sin datos de TQS todavía</div>';return;}
+  el.innerHTML='<div class="cine-tqs">'+wd.map(t=>{const pct=Math.round(t.exito/t.total*100);
+    return '<div class="cine-trow" title="'+escapeHtml(t.nombre)+': '+t.total+' RFC · '+pct+'% éxito"><div class="nm">'+escapeHtml(t.nombre)+'</div><div class="cine-track"><div class="cine-fill" data-w="'+pct+'"></div></div><div class="pc">'+pct+'%</div></div>';
+  }).join('')+'</div>';
+  requestAnimationFrame(()=>el.querySelectorAll('.cine-fill').forEach(f=>f.style.width=f.dataset.w+'%'));
 }
 
 async function renderDireccionPage() {
@@ -5262,9 +5325,14 @@ async function renderDireccionPage() {
 
   // ── Gráficas ──
   const perTqs = direccionAggregateByOwner(records, tqsList);
+  _dirRecords = records;
+  renderDirGauge(exito, total);
   renderDonutChart(perTqs, total);
-  renderMonthlyTrendChart(monthly);
+  renderMonthlyTrendChart();
   renderTqsPerformanceChart(perTqs);
+  dirCountUpKpis();
+  if(!document.getElementById('dir-seg')._wired){document.getElementById('dir-seg')._wired=1;
+    document.getElementById('dir-seg').addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;document.querySelectorAll('#dir-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');_dirRange=b.dataset.k;const kk=document.getElementById('dir-bars-k');if(kk)kk.textContent=({mes:'12 meses',tri:'8 trimestres',ano:'por año'})[_dirRange]+' · línea = % éxito';renderMonthlyTrendChart();});}
 
   // ── Tabla de números exactos (colapsable) ──
   const tqsTableEl = document.getElementById('direccion-tqs-table');
