@@ -683,12 +683,24 @@ body.theme-dark .sol-tipo-KIT{color:#5BD0FF}
 
       <div class="onb-step active" id="onb-step-1">
         <div class="auth-title">Bienvenido</div>
-        <div class="auth-subtitle" id="onb-welcome-msg">Primera vez en el sistema. Configuremos tu perfil.</div>
+        <div class="auth-subtitle" id="onb-welcome-msg">Primera vez en el sistema. Configuremos tu perfil y fija tu contraseña definitiva.</div>
 
         <div class="auth-field">
           <div class="auth-label">¿Cómo te llamas?</div>
           <input class="auth-input" id="onb-nombre" type="text" placeholder="Nombre completo">
         </div>
+
+        <div class="auth-field">
+          <div class="auth-label">Nueva contraseña</div>
+          <input class="auth-input" id="onb-new-password" type="password" placeholder="Mínimo 8 caracteres">
+        </div>
+
+        <div class="auth-field">
+          <div class="auth-label">Repite la contraseña</div>
+          <input class="auth-input" id="onb-new-password-confirm" type="password" placeholder="Repite la contraseña">
+        </div>
+
+        <div class="auth-error" id="onb-password-error"></div>
 
         <button class="auth-btn" aria-label="Siguiente paso de configuración" onclick="onbNext()">Siguiente →</button>
       </div>
@@ -3774,6 +3786,30 @@ document.addEventListener('DOMContentLoaded', () => {
 async function onbNext() {
   const nombre = document.getElementById('onb-nombre').value.trim();
   if (!nombre) { showToast('Escribe tu nombre', 'warning'); return; }
+
+  const pwErrEl = document.getElementById('onb-password-error');
+  pwErrEl.style.display = 'none';
+  const newPassword = document.getElementById('onb-new-password').value;
+  const newPasswordConfirm = document.getElementById('onb-new-password-confirm').value;
+  if (!newPassword || newPassword.length < 8) {
+    pwErrEl.textContent = 'La contraseña debe tener al menos 8 caracteres';
+    pwErrEl.style.display = 'block';
+    return;
+  }
+  if (newPassword !== newPasswordConfirm) {
+    pwErrEl.textContent = 'Las contraseñas no coinciden';
+    pwErrEl.style.display = 'block';
+    return;
+  }
+  try {
+    const { error: pwErr } = await sb.auth.updateUser({ password: newPassword });
+    if (pwErr) throw pwErr;
+  } catch(e) {
+    pwErrEl.textContent = 'No se pudo guardar la contraseña: ' + e.message;
+    pwErrEl.style.display = 'block';
+    return;
+  }
+
   window._onbNombre = nombre;
   document.getElementById('onb-step-1').classList.remove('active');
   document.getElementById('onb-dot-2').classList.add('done');
